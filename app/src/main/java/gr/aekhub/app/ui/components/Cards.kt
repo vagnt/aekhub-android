@@ -90,67 +90,14 @@ fun LiveBar(m: MatchCard, onClick: () -> Unit) {
     }
 }
 
-/** Κάρτα αγώνα στη λίστα «Αγώνες». */
+/** Μεσαία κάρτα: πρώτο άρθρο κάθε ενότητας στην αρχική. */
 @Composable
-fun MatchRow(m: MatchCard, alert: Boolean, onAlert: () -> Unit, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(16.dp)
-    val meta = listOf(m.sportLabel, m.competition).filter { it.isNotBlank() }.joinToString(" · ").upperGr()
-    if (m.live) {
-        Column(
-            Modifier.fillMaxWidth().clip(shape).background(C.Panel).border(1.dp, C.Live, shape).clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(meta, Modifier.weight(1f), style = body(11, FontWeight.Bold, C.Muted), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                LiveDot(); Spacer(Modifier.width(6.dp))
-                Text(liveMinute(m.clock, m.minute.ifBlank { m.statusLabel }).let { if (it.endsWith("′")) "LIVE $it" else it.upperGr() }, style = body(11, FontWeight.ExtraBold, C.Live))
-            }
-            TeamLine(m.homeLogo, m.home, m.scoreHome.ifBlank { "0" }, m.aek == "home")
-            TeamLine(m.awayLogo, m.away, m.scoreAway.ifBlank { "0" }, m.aek == "away")
+fun PostCardMedium(p: PostCard, onClick: () -> Unit) {
+    Column(Modifier.fillMaxWidth().clickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(Modifier.fillMaxWidth().height(190.dp).clip(RoundedCornerShape(16.dp)).background(C.Panel2)) {
+            if (p.image.isNotBlank()) AsyncImage(p.image, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         }
-        return
-    }
-    Row(
-        Modifier.fillMaxWidth().clip(shape).then(if (m.upcoming) Modifier.background(C.Panel) else Modifier).border(1.dp, C.Line, shape)
-            .clickable(onClick = onClick).padding(start = 14.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Column(Modifier.width(54.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            when {
-                m.finished -> Text("ΤΕΛΙΚΟ", style = body(11, FontWeight.ExtraBold, C.Muted))
-                m.postponed -> Text("ΑΝΑΒΟΛΗ", style = body(10, FontWeight.ExtraBold, C.Muted))
-                else -> {
-                    Text(m.time.ifBlank { "—" }, style = disp(22), color = C.Gold)
-                    if (m.broadcast.isNotBlank()) Text(m.broadcast, style = body(10, FontWeight.Bold, C.Muted), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-            }
-        }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text(meta, style = body(11, FontWeight.Bold, C.Muted), maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Row {
-                Text(m.home, style = body(15, FontWeight.ExtraBold, if (m.aek == "home") C.Gold else C.Text), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, false))
-                Text(" – ", style = body(15, FontWeight.ExtraBold))
-                Text(m.away, style = body(15, FontWeight.ExtraBold, if (m.aek == "away") C.Gold else C.Text), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, false))
-            }
-        }
-        if (m.finished && m.scoreHome.isNotBlank()) {
-            val bg = when (m.aekWon) { true -> C.Win; false -> C.Loss; null -> C.Panel3 }
-            Box(Modifier.padding(end = 10.dp).clip(RoundedCornerShape(7.dp)).background(bg).padding(horizontal = 9.dp, vertical = 2.dp)) {
-                Text("${m.scoreHome}–${m.scoreAway}", style = disp(22, FontWeight.Black), color = Color.White)
-            }
-        } else if (m.upcoming) {
-            IconButton(onClick = onAlert) {
-                Icon(if (alert) Icons.Filled.Notifications else Icons.Outlined.NotificationsNone, if (alert) "Ειδοποίηση ενεργή" else "Ειδοποίηση για αυτόν τον αγώνα", tint = if (alert) C.Gold else C.Muted)
-            }
-        } else Spacer(Modifier.size(10.dp))
-    }
-}
-
-@Composable
-private fun TeamLine(logo: String, name: String, score: String, aek: Boolean) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Crest(logo, name, 26.dp)
-        Text(name, Modifier.weight(1f), style = body(16, if (aek) FontWeight.ExtraBold else FontWeight.Bold, if (aek) C.Gold else C.Text), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(score, style = disp(24, FontWeight.Black), color = if (aek) C.Gold else C.Text)
+        Text(p.title, style = body(18, FontWeight.ExtraBold).copy(lineHeight = 23.sp), maxLines = 3, overflow = TextOverflow.Ellipsis)
+        Text(postDate(p.date, withYear = false), style = body(12, color = C.Muted))
     }
 }

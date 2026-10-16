@@ -57,6 +57,7 @@ import androidx.navigation.navArgument
 import gr.aekhub.app.data.Api
 import gr.aekhub.app.data.Prefs
 import gr.aekhub.app.ui.screens.ArticleScreen
+import gr.aekhub.app.ui.screens.FeedScreen
 import gr.aekhub.app.ui.screens.HomeScreen
 import gr.aekhub.app.ui.screens.MatchScreen
 import gr.aekhub.app.ui.screens.MatchesScreen
@@ -174,7 +175,8 @@ private fun AppRoot(deep: MutableStateFlow<Deep?>) {
     ) { pad ->
         Box(Modifier.fillMaxSize().background(C.Ink).padding(pad)) {
             NavHost(nav, startDestination = "home") {
-                composable("home") { HomeScreen(openPost, openMatch, { nav.navigate("search") }, { goTab("me") }) }
+                composable("home") { HomeScreen(openPost, openMatch, { nav.navigate("search") }, { goTab("me") }, { nav.navigate("feed") }, { goTab("matches") }) }
+                composable("feed") { FeedScreen({ nav.popBackStack() }, openPost) }
                 composable("matches") { MatchesScreen(openMatch) }
                 composable("standings") { StandingsScreen() }
                 composable("me") { MeScreen(openPost) }

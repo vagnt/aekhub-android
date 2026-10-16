@@ -55,6 +55,7 @@ data class Post(
     val category: String = "",
     val link: String = "",
     val author: String = "",
+    val authorAvatar: String = "",
     val minutes: Int = 1,
     val html: String = "",
 ) {
@@ -81,6 +82,10 @@ data class MatchCard(
     val away: String = "",
     val homeLogo: String = "",
     val awayLogo: String = "",
+    val homeColor: String = "",
+    val awayColor: String = "",
+    val homeNum: String = "",
+    val awayNum: String = "",
     val scoreHome: String = "",
     val scoreAway: String = "",
     val penHome: String = "",
@@ -155,6 +160,10 @@ data class MatchDetail(
     val away: String = "",
     val homeLogo: String = "",
     val awayLogo: String = "",
+    val homeColor: String = "",
+    val awayColor: String = "",
+    val homeNum: String = "",
+    val awayNum: String = "",
     val scoreHome: String = "",
     val scoreAway: String = "",
     val penHome: String = "",
@@ -176,10 +185,45 @@ data class MatchDetail(
     val coachAway: String = "",
     val referee: String = "",
     val stamp: Long = 0,
-) {
-    fun card() = MatchCard(id, sport, sportLabel, status, statusLabel, phase, live, minute, clock, date, time, home, away,
-        homeLogo, awayLogo, scoreHome, scoreAway, penHome, penAway, competition, matchday, venue, broadcast, aek, link)
-}
+    val bg: String = "",
+    val scorersHome: List<String> = emptyList(),
+    val scorersAway: List<String> = emptyList(),
+    val stream: StreamInfo? = null,
+    val highlights: List<Highlight> = emptyList(),
+    val pitch: Pitch? = null,
+)
+
+@Serializable
+data class StreamInfo(val url: String, val thumb: String = "", val label: String = "", val kicker: String = "", val state: String = "pre")
+
+@Serializable
+data class Highlight(val title: String = "", val url: String, val thumb: String = "")
+
+@Serializable
+data class PitchPlayer(
+    val number: String = "", val name: String = "", val x: Float = 50f, val y: Float = 50f,
+    val goals: Int = 0, val yellow: Boolean = false, val red: Boolean = false, val out: String = "", val `in`: String = "",
+)
+
+@Serializable
+data class Pitch(
+    val home: List<PitchPlayer> = emptyList(),
+    val away: List<PitchPlayer> = emptyList(),
+    val formationHome: String = "",
+    val formationAway: String = "",
+    val bg: String = "",
+)
+
+@Serializable
+data class Section(val slug: String, val name: String, val items: List<PostCard> = emptyList())
+
+@Serializable
+data class HomeData(
+    val featured: PostCard? = null,
+    val top: List<PostCard> = emptyList(),
+    val matches: List<MatchCard> = emptyList(),
+    val sections: List<Section> = emptyList(),
+)
 
 @Serializable
 data class StandingRow(
@@ -203,8 +247,13 @@ data class Standing(
     val sport: String = "",
     val league: String = "",
     val style: String = "wdl",
+    val leagueLogo: String = "",
+    val zones: List<Zone> = emptyList(),
     val rows: List<StandingRow> = emptyList(),
 )
+
+@Serializable
+data class Zone(val from: Int, val to: Int, val label: String = "", val color: String = "#F9CF1C")
 
 @Serializable
 data class StandingsList(val items: List<Standing> = emptyList())

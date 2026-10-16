@@ -63,5 +63,6 @@ object Api {
         return json.decodeFromString(get("/matches" + if (p.isEmpty()) "" else "?$p"))
     }
     suspend fun match(id: Long): MatchDetail = json.decodeFromString(get("/match/$id"))
+    suspend fun home(): HomeData = json.decodeFromString(get("/home"))
     suspend fun standings(): StandingsList = json.decodeFromString(get("/standings"))
 }

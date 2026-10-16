@@ -111,9 +111,12 @@ fun ArticleScreen(id: Long, back: () -> Unit) {
                 Column(Modifier.offset(y = (-48).dp).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     if (p.category.isNotBlank()) Tag(p.category)
                     Text(p.title.upperGr(), style = disp((36 * scale).toInt()).copy(lineHeight = (36 * scale * 0.98f).sp), color = C.Text)
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        if (p.author.isNotBlank()) Text(p.author, style = body(13, FontWeight.Bold))
-                        Text(postDate(p.date) + " · " + p.minutes + " λεπτά ανάγνωση", style = body(12, color = C.Muted))
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        if (p.authorAvatar.isNotBlank()) AsyncImage(p.authorAvatar, p.author, Modifier.size(42.dp).clip(CircleShape).background(C.Panel2), contentScale = ContentScale.Crop)
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            if (p.author.isNotBlank()) Text(p.author, style = body(14, FontWeight.ExtraBold))
+                            Text(postDate(p.date) + " · " + p.minutes + " λεπτά ανάγνωση", style = body(12, color = C.Muted))
+                        }
                     }
                     Box(Modifier.fillMaxWidth().height(1.dp).background(C.Line))
                 }
