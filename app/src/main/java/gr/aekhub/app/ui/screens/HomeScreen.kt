@@ -97,7 +97,7 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
     LaunchedEffect(Unit) { gr.aekhub.app.live.Live.ping.collect { load(fresh = true) } }
     LaunchedEffect(Unit) { while (true) { delay(60_000); load(fresh = true) } }
     LaunchedEffect(key) {
-        while (true) { runCatching { live = Api.matches().items.filter { it.live && it.aek.isNotEmpty() } }; delay(30_000) }
+        while (true) { runCatching { live = Api.matches().items.filter { it.live && it.aek.isNotEmpty() } }; delay(if (live.isNotEmpty()) 15_000 else 60_000) }
     }
 
     Column(Modifier.fillMaxSize()) {

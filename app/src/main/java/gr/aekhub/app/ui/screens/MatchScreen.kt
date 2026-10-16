@@ -105,7 +105,7 @@ fun MatchScreen(id: Long, back: () -> Unit) {
     var refreshing by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf(false) }
     var key by remember { mutableIntStateOf(0) }
-    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var tabName by rememberSaveable { mutableStateOf("") }
     var popup by remember { mutableStateOf<gr.aekhub.app.data.Highlight?>(null) }
     var playStream by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -123,12 +123,17 @@ fun MatchScreen(id: Long, back: () -> Unit) {
     val d = m
     if (d == null) { if (error) ErrorBox { key++ } else Loading(); return }
     val alert = settings.matchAlerts.contains(d.id.toString())
+    val hasStats = d.stats.isNotEmpty() || d.periods.isNotEmpty()
+    val hasLineups = d.lineupHome.isNotEmpty() || d.lineupAway.isNotEmpty()
+    // «Πορεία» μόνο όταν υπάρχουν γεγονότα. Αλλιώς μόνο Στατιστικά / Συνθέσεις.
     val tabs = buildList {
-        add("Πορεία")
-        if (d.stats.isNotEmpty() || d.periods.isNotEmpty()) add("Στατιστικά")
-        if (d.lineupHome.isNotEmpty() || d.lineupAway.isNotEmpty()) add("Συνθέσεις")
+        if (d.events.isNotEmpty()) add("Πορεία")
+        if (hasStats) add("Στατιστικά")
+        if (hasLineups) add("Συνθέσεις")
     }
-    if (tab >= tabs.size) tab = 0
+    // Το μήνυμα μόνο όταν ο αγώνας δεν έχει ΤΙΠΟΤΑ live (ούτε σκορ, ούτε γεγονότα, ούτε στατιστικά/συνθέσεις)
+    val noCoverage = tabs.isEmpty() && !d.liveScore && !d.live
+    val tab = tabs.indexOf(tabName).takeIf { it >= 0 } ?: 0
 
     popup?.let { h -> gr.aekhub.app.ui.components.VideoDialog(h.title, h.embed) { popup = null } }
     androidx.compose.material3.pulltorefresh.PullToRefreshBox(
@@ -160,7 +165,7 @@ fun MatchScreen(id: Long, back: () -> Unit) {
             Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(C.Panel).padding(4.dp)) {
                 tabs.forEachIndexed { i, t ->
                     val on = i == tab
-                    Box(Modifier.weight(1f).clip(RoundedCornerShape(9.dp)).background(if (on) C.Gold else Color.Transparent).clickable { tab = i }.padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
+                    Box(Modifier.weight(1f).clip(RoundedCornerShape(9.dp)).background(if (on) C.Gold else Color.Transparent).clickable { tabName = t }.padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
                         Text(t, style = body(13, if (on) FontWeight.ExtraBold else FontWeight.Bold, if (on) C.Ink else C.Text2))
                     }
                 }
@@ -169,15 +174,16 @@ fun MatchScreen(id: Long, back: () -> Unit) {
         when (tabs.getOrNull(tab)) {
             "Στατιστικά" -> item(key = "stats") { StatsView(d) }
             "Συνθέσεις" -> item(key = "lu") { LineupsView(d) }
+            "Πορεία" -> {
+                item(key = "tlh") { TimelineHeader(d) }
+                // Ζωντανά: το πιο πρόσφατο πάνω. Τελικό: από την αρχή προς το τέλος (όπως στο site).
+                val evs = if (d.status == "finished") d.events.reversed() else d.events
+                items(evs.size) { i -> TimelineRow(evs[i], d) }
+            }
             else -> {
-                if (d.events.isEmpty()) item(key = "noev") {
-                    val (t1, t2) = when {
-                        !d.timeline && d.status == "finished" -> "Μόνο αποτέλεσμα" to "Ο αγώνας δεν καλύφθηκε live. Υπάρχει μόνο το τελικό αποτέλεσμα."
-                        !d.timeline -> "Χωρίς live κάλυψη" to "Αυτός ο αγώνας δεν καλύπτεται live. Θα δεις εδώ το τελικό αποτέλεσμα."
-                        d.status == "upcoming" -> "Η πορεία έρχεται" to "Τα γεγονότα του αγώνα θα εμφανίζονται εδώ μόλις ξεκινήσει."
-                        d.status == "finished" -> "Μόνο αποτέλεσμα" to "Για αυτόν τον αγώνα δεν καταγράφηκε πορεία. Υπάρχει μόνο το τελικό αποτέλεσμα."
-                        else -> "Αναμονή γεγονότων" to "Ο αγώνας είναι σε εξέλιξη. Τα γεγονότα θα εμφανιστούν εδώ."
-                    }
+                if (noCoverage) item(key = "noev") {
+                    val (t1, t2) = if (d.status == "finished") "Μόνο αποτέλεσμα" to "Ο αγώνας δεν καλύφθηκε live. Υπάρχει μόνο το τελικό αποτέλεσμα."
+                        else "Χωρίς live κάλυψη" to "Αυτός ο αγώνας δεν καλύπτεται live. Θα δεις εδώ το τελικό αποτέλεσμα."
                     Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(16.dp)).padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         Box(Modifier.size(44.dp).clip(CircleShape).background(C.Panel3), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Info, null, tint = C.Gold) }
@@ -186,11 +192,6 @@ fun MatchScreen(id: Long, back: () -> Unit) {
                             Text(t2, style = body(13, color = C.Text2))
                         }
                     }
-                } else {
-                    item(key = "tlh") { TimelineHeader(d) }
-                    // Ζωντανά: το πιο πρόσφατο πάνω. Τελικό: από την αρχή προς το τέλος (όπως στο site).
-                    val evs = if (d.status == "finished") d.events.reversed() else d.events
-                    items(evs.size) { i -> TimelineRow(evs[i], d) }
                 }
             }
         }

@@ -117,6 +117,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Επιστροφή στο app: όλες οι ανοιχτές οθόνες φέρνουν αμέσως τα τρέχοντα (χωρίς refresh με το χέρι)
+    private var resumedOnce = false
+    override fun onResume() {
+        super.onResume()
+        if (resumedOnce) gr.aekhub.app.live.Live.ping() else resumedOnce = true
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         readIntent(intent)

@@ -5,7 +5,6 @@ import gr.aekhub.app.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import okhttp3.Cache
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -37,7 +36,6 @@ object Api {
         if (::http.isInitialized) return
         dir = File(ctx.filesDir, "api").apply { mkdirs() }
         http = OkHttpClient.Builder()
-            .cache(Cache(File(ctx.cacheDir, "http"), 20L * 1024 * 1024))
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(20, TimeUnit.SECONDS)
             .addInterceptor { chain ->
@@ -46,10 +44,14 @@ object Api {
             .build()
     }
 
-    /** fresh = τράβηγμα για ανανέωση: παρακάμπτει κάθε cache (κινητού και server). */
+    /**
+     * Κάθε λήψη πάει ΠΑΝΤΑ στον server, χωρίς καμία ενδιάμεση cache (κινητού ή WordPress.com),
+     * ώστε σκορ και γεγονότα να είναι πάντα τα τρέχοντα. Το άμεσο άνοιγμα το δίνει η peek (δίσκος).
+     */
+    @Suppress("UNUSED_PARAMETER")
     private suspend fun get(path: String, fresh: Boolean = false): String = withContext(Dispatchers.IO) {
-        val url = BASE + path + if (fresh) (if ('?' in path) "&" else "?") + "_=" + System.currentTimeMillis() else ""
-        val req = Request.Builder().url(url).apply { if (fresh) cacheControl(okhttp3.CacheControl.FORCE_NETWORK) }.build()
+        val url = BASE + path + (if ('?' in path) "&" else "?") + "_=" + System.currentTimeMillis()
+        val req = Request.Builder().url(url).cacheControl(okhttp3.CacheControl.FORCE_NETWORK).header("Cache-Control", "no-cache").build()
         http.newCall(req).execute().use { r ->
             if (!r.isSuccessful) throw IOException("HTTP " + r.code)
             (r.body?.string() ?: throw IOException("Κενή απάντηση")).also { save(path, it) }

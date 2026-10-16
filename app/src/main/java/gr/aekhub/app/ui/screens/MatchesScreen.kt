@@ -99,7 +99,7 @@ fun MatchesScreen(openMatch: (Long) -> Unit) {
         while (true) {
             try { list = Api.matches(start.toString(), days.last().toString(), sport.ifEmpty { null }).items; error = false }
             catch (e: Exception) { if (list == null) error = true }
-            delay(if (list?.any { it.live } == true) 20_000 else 120_000)
+            delay(if (list?.any { it.live } == true) 15_000 else 90_000)
         }
     }
     LaunchedEffect(sport) { gr.aekhub.app.live.Live.ping.collect { runCatching { list = Api.matches(start.toString(), days.last().toString(), sport.ifEmpty { null }, fresh = true).items } } }

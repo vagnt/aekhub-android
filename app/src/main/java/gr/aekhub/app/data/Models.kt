@@ -191,6 +191,7 @@ data class MatchDetail(
     val stamp: Long = 0,
     val bg: String = "",
     val timeline: Boolean = true,
+    val liveScore: Boolean = true,
     val scorersHome: List<String> = emptyList(),
     val scorersAway: List<String> = emptyList(),
     val stream: StreamInfo? = null,

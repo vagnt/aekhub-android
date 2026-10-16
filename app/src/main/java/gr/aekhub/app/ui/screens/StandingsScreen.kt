@@ -68,7 +68,7 @@ fun StandingsScreen() {
     var key by remember { mutableIntStateOf(0) }
     var sport by rememberSaveable { mutableStateOf("") }
     var sel by rememberSaveable { mutableStateOf(0L) }
-    LaunchedEffect(key) { error = false; try { list = Api.standings().items } catch (e: Exception) { if (list == null) error = true } }
+    LaunchedEffect(key) { while (true) { error = false; try { list = Api.standings().items } catch (e: Exception) { if (list == null) error = true }; kotlinx.coroutines.delay(120_000) } }
     LaunchedEffect(Unit) { gr.aekhub.app.live.Live.ping.collect { runCatching { list = Api.standings(fresh = true).items } } }
 
     Column(Modifier.fillMaxSize()) {
