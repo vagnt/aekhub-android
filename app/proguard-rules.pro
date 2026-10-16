@@ -1,3 +1,6 @@
+# Ολόκληρος ο κώδικας του app μένει ως έχει (ασφάλεια). Οι βιβλιοθήκες (Compose κ.λπ.) βελτιστοποιούνται.
+-keep class gr.aekhub.app.** { *; }
+-keepattributes Signature, *Annotation*, InnerClasses, EnclosingMethod
 # kotlinx.serialization
 -keepattributes *Annotation*, InnerClasses
 -dontnote kotlinx.serialization.**

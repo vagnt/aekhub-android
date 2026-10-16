@@ -96,11 +96,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun MatchScreen(id: Long, back: () -> Unit) {
     val prefs = LocalPrefs.current
     val settings by prefs.settings.collectAsState(initial = Settings())
-    var m by remember { mutableStateOf<MatchDetail?>(null) }
+    var m by remember { mutableStateOf(Api.peek<MatchDetail>(Api.pMatch(id))) }
+    var refreshing by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf(false) }
     var key by remember { mutableIntStateOf(0) }
     var tab by rememberSaveable { mutableIntStateOf(0) }
@@ -128,6 +130,10 @@ fun MatchScreen(id: Long, back: () -> Unit) {
     if (tab >= tabs.size) tab = 0
 
     popup?.let { h -> gr.aekhub.app.ui.components.VideoDialog(h.title, h.embed) { popup = null } }
+    androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+        isRefreshing = refreshing, modifier = Modifier.fillMaxSize(),
+        onRefresh = { scope.launch { refreshing = true; runCatching { m = Api.match(id, fresh = true) }; refreshing = false } },
+    ) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item(key = "hero") {
             Hero(d, alert, back) { scope.launch { prefs.toggleMatchAlert(d.id) } }
@@ -187,6 +193,7 @@ fun MatchScreen(id: Long, back: () -> Unit) {
                 }
             }
         }
+    }
     }
 }
 

@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import coil.Coil
 import coil.ImageLoader
+import coil.decode.SvgDecoder
 import okhttp3.OkHttpClient
 import gr.aekhub.app.ui.screens.CategoryScreen
 import gr.aekhub.app.ui.screens.EventScreen
@@ -99,13 +100,10 @@ class MainActivity : ComponentActivity() {
         val ink = C.Ink.toArgb()
         enableEdgeToEdge(SystemBarStyle.dark(ink), SystemBarStyle.dark(ink))
         Api.init(applicationContext)
-        // Εικόνες: ό,τι είναι σε http περνάει σε https (το Android μπλοκάρει το http)
-        Coil.setImageLoader(ImageLoader.Builder(applicationContext).okHttpClient {
-            OkHttpClient.Builder().addInterceptor { ch ->
-                val r = ch.request()
-                ch.proceed(if (r.url.scheme == "http") r.newBuilder().url(r.url.newBuilder().scheme("https").build()).build() else r)
-            }.build()
-        }.crossfade(true).build())
+        // Εικόνες: και SVG λογότυπα (πολλά σήματα ομάδων είναι .svg), και παλιά links σε http
+        Coil.setImageLoader(ImageLoader.Builder(applicationContext)
+            .components { add(SvgDecoder.Factory()) }
+            .crossfade(true).build())
         Push.channels(this)
         Ads.start(this)
         val prefs = Prefs(applicationContext)

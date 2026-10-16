@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -72,11 +73,12 @@ private const val BACK_DAYS = 45L
 private const val FWD_DAYS = 90L
 
 /** Αγώνες μέρα-μέρα: σύρε ή πάτα μέρα· όταν δεν είσαι στο «σήμερα», φαίνεται κουμπί επιστροφής. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun MatchesScreen(openMatch: (Long) -> Unit) {
     val prefs = LocalPrefs.current
     val settings by prefs.settings.collectAsState(initial = Settings())
-    var config by remember { mutableStateOf<AppConfig?>(null) }
+    var config by remember { mutableStateOf(Api.configNow()) }
     var sport by rememberSaveable { mutableStateOf("") }
     var list by remember { mutableStateOf<List<MatchCard>?>(null) }
     var error by remember { mutableStateOf(false) }
@@ -90,8 +92,10 @@ fun MatchesScreen(openMatch: (Long) -> Unit) {
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) { runCatching { config = Api.config() } }
+    var refreshing by remember { mutableStateOf(false) }
     LaunchedEffect(sport, key) {
-        list = null; error = false
+        // Αμέσως ό,τι ξέρουμε από την προηγούμενη φορά, μετά φρέσκα
+        list = Api.peek<gr.aekhub.app.data.MatchList>(Api.pMatches(start.toString(), days.last().toString(), sport.ifEmpty { null }))?.items; error = false
         while (true) {
             try { list = Api.matches(start.toString(), days.last().toString(), sport.ifEmpty { null }).items; error = false }
             catch (e: Exception) { if (list == null) error = true }
@@ -160,13 +164,16 @@ fun MatchesScreen(openMatch: (Long) -> Unit) {
         when {
             items == null && error -> ErrorBox { key++ }
             items == null -> Loading()
-            else -> HorizontalPager(state = pager, modifier = Modifier.fillMaxSize(), beyondViewportPageCount = 1) { page ->
+            else -> androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+                isRefreshing = refreshing, modifier = Modifier.fillMaxSize(),
+                onRefresh = { scope.launch { refreshing = true; runCatching { list = Api.matches(start.toString(), days.last().toString(), sport.ifEmpty { null }, fresh = true).items }; refreshing = false } },
+            ) { HorizontalPager(state = pager, modifier = Modifier.fillMaxSize(), beyondViewportPageCount = 1) { page ->
                 val d = days[page]
                 val ms = byDay[d.toString()] ?: emptyList()
                 if (ms.isEmpty()) {
                     val next = days.indices.firstOrNull { it > page && byDay.containsKey(days[it].toString()) }
                     val prev = days.indices.lastOrNull { it < page && byDay.containsKey(days[it].toString()) }
-                    Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(Modifier.fillMaxSize().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Spacer(Modifier.height(30.dp))
                         Text("Δεν υπάρχουν αγώνες αυτή τη μέρα.", style = body(15, FontWeight.Bold, C.Text2), textAlign = TextAlign.Center)
                         Spacer(Modifier.height(16.dp))
@@ -185,7 +192,7 @@ fun MatchesScreen(openMatch: (Long) -> Unit) {
                     val ads = config?.ads
                     if (ads != null && ads.enabled && ads.matches) item(key = "ad") { BannerAd(ads) }
                 }
-            }
+            } }
         }
     }
 }

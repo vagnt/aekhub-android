@@ -55,14 +55,18 @@ import gr.aekhub.app.ui.theme.C
 import gr.aekhub.app.ui.theme.body
 import gr.aekhub.app.ui.theme.disp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /** Live γεγονός (Live Ticker): συνέντευξη, παρουσίαση, κλήρωση… ανανεώνεται μόνο του. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun EventScreen(id: Long, back: () -> Unit) {
     var ev by remember { mutableStateOf<EventDetail?>(null) }
     var error by remember { mutableStateOf(false) }
     var key by remember { mutableIntStateOf(0) }
     var popup by remember { mutableStateOf<EventUpdate?>(null) }
+    var refreshing by remember { mutableStateOf(false) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     val ctx = LocalContext.current
     LaunchedEffect(id, key) {
         while (true) {
@@ -74,6 +78,8 @@ fun EventScreen(id: Long, back: () -> Unit) {
     if (e == null) { if (error) ErrorBox { key++ } else Loading(); return }
     popup?.let { u -> VideoDialog(u.title.ifBlank { e.title }, u.embed) { popup = null } }
 
+    androidx.compose.material3.pulltorefresh.PullToRefreshBox(isRefreshing = refreshing, modifier = Modifier.fillMaxSize(),
+        onRefresh = { scope.launch { refreshing = true; runCatching { ev = Api.event(id, fresh = true) }; refreshing = false } }) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Box(Modifier.fillMaxWidth().height(230.dp)) {
@@ -111,5 +117,6 @@ fun EventScreen(id: Long, back: () -> Unit) {
                 }
             }
         }
+    }
     }
 }

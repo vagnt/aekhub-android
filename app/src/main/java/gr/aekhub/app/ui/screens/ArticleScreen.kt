@@ -70,6 +70,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun ArticleScreen(id: Long, back: () -> Unit) {
     val prefs = LocalPrefs.current
@@ -84,13 +85,18 @@ fun ArticleScreen(id: Long, back: () -> Unit) {
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
 
+    var refreshing by remember { mutableStateOf(false) }
+    var fresh by remember { mutableStateOf(false) }
     LaunchedEffect(id, key) {
         error = false
+        // Αν το άρθρο έχει ξανανοίξει, φαίνεται αμέσως από την αποθήκευση
+        if (post == null) Api.peek<Post>(Api.pPost(id))?.let { c -> blocks = withContext(Dispatchers.Default) { Html.parse(c.html, c.link) }; post = c }
         try {
-            val p = Api.post(id)
+            val p = Api.post(id, fresh); fresh = false
             blocks = withContext(Dispatchers.Default) { Html.parse(p.html, p.link) }
             post = p
-        } catch (e: Exception) { error = true }
+        } catch (e: Exception) { if (post == null) error = true }
+        refreshing = false
     }
 
     val p = post
@@ -102,6 +108,7 @@ fun ArticleScreen(id: Long, back: () -> Unit) {
     }, "Κοινοποίηση"))
 
     Box(Modifier.fillMaxSize()) {
+        androidx.compose.material3.pulltorefresh.PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; fresh = true; key++ }, modifier = Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 110.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item(key = "hero") {
                 Box(Modifier.fillMaxWidth().height(280.dp).background(C.Panel)) {
@@ -133,6 +140,7 @@ fun ArticleScreen(id: Long, back: () -> Unit) {
             if (socials.isNotEmpty()) item(key = "socials") {
                 Box(Modifier.offset(y = (-48).dp).padding(horizontal = 16.dp)) { SocialRow(socials, "Συζήτησέ το μαζί μας") }
             }
+        }
         }
 
         // Πάνω κουμπιά

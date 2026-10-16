@@ -148,3 +148,24 @@ fun CategoryMenu(items: List<Triple<String, String, String>>, onPick: (String, S
     }
 }
 
+
+/** Λεπτή λωρίδα στην κορυφή της αρχικής: «Ακολούθησέ μας» + εικονίδια. */
+@Composable
+fun SocialStrip(list: List<Social>) {
+    if (list.isEmpty()) return
+    val ctx = LocalContext.current
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(14.dp)).padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("ΑΚΟΛΟΥΘΗΣΕ ΜΑΣ", style = disp(16), color = C.Gold)
+            Text(list.firstOrNull { it.handle.isNotBlank() }?.handle ?: "AEK Hub", style = body(11, FontWeight.Bold, C.Muted), maxLines = 1)
+        }
+        list.forEach { s ->
+            Box(Modifier.size(36.dp).clip(CircleShape).background(socialBrush(s.key)).clickable { openUrl(ctx, s.url) }, contentAlignment = Alignment.Center) {
+                Icon(painterResource(socialIcon(s.key)), s.label, tint = Color.White, modifier = Modifier.size(18.dp))
+            }
+        }
+    }
+}

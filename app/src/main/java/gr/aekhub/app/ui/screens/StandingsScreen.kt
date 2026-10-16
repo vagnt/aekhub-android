@@ -1,6 +1,11 @@
 package gr.aekhub.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,9 +57,12 @@ import gr.aekhub.app.ui.theme.body
 import gr.aekhub.app.ui.theme.disp
 
 /** Βαθμολογίες: άθλημα → διοργάνωση (chips, όπως στο site) → ένας πίνακας τη φορά. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun StandingsScreen() {
-    var list by remember { mutableStateOf<List<Standing>?>(null) }
+    var list by remember { mutableStateOf(Api.peek<gr.aekhub.app.data.StandingsList>(Api.pStandings())?.items) }
+    var refreshing by remember { mutableStateOf(false) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     var error by remember { mutableStateOf(false) }
     var key by remember { mutableIntStateOf(0) }
     var sport by rememberSaveable { mutableStateOf("") }
@@ -70,11 +78,45 @@ fun StandingsScreen() {
         if (sport !in sports) sport = sports.first()
         val ofSport = l.filter { it.sport.ifBlank { "Άλλα" } == sport }
         if (ofSport.none { it.id == sel }) sel = (ofSport.firstOrNull { t -> t.rows.any { it.aek } } ?: ofSport.first()).id
-        if (sports.size > 1) ChipRow(sports.map { it to it }, sport, { sport = it }, Modifier.padding(bottom = 8.dp))
-        if (ofSport.size > 1) LeagueTabs(ofSport, sel) { sel = it }
+        // Δύο λίστες: Άθλημα → Διοργάνωση (οι διοργανώσεις αλλάζουν ανάλογα με το άθλημα)
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Dropdown("ΑΘΛΗΜΑ", sport, sports.map { it to it }, Modifier.weight(0.8f)) { sport = it }
+            Dropdown("ΔΙΟΡΓΑΝΩΣΗ", ofSport.firstOrNull { it.id == sel }?.let { it.league.ifBlank { it.title } } ?: "",
+                ofSport.map { it.id.toString() to it.league.ifBlank { it.title } }, Modifier.weight(1.2f)) { sel = it.toLong() }
+        }
         val t = ofSport.first { it.id == sel }
-        LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 28.dp)) {
-            item(key = "t" + t.id) { Table(t) }
+        androidx.compose.material3.pulltorefresh.PullToRefreshBox(
+            isRefreshing = refreshing, modifier = Modifier.fillMaxSize(),
+            onRefresh = { scope.launch { refreshing = true; runCatching { list = Api.standings(fresh = true).items }; refreshing = false } },
+        ) {
+            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp)) {
+                item(key = "t" + t.id) { Table(t) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Dropdown(label: String, value: String, options: List<Pair<String, String>>, modifier: Modifier, pick: (String) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box(modifier) {
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(C.Panel).border(1.dp, if (open) C.Gold else C.Line2, RoundedCornerShape(12.dp))
+                .clickable(enabled = options.size > 1) { open = true }.padding(horizontal = 12.dp, vertical = 8.dp),
+        ) {
+            Text(label, style = body(9, FontWeight.ExtraBold, C.Muted).copy(letterSpacing = 1.sp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(value, Modifier.weight(1f), style = body(14, FontWeight.ExtraBold, C.Text), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (options.size > 1) androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.ArrowDropDown, null, tint = C.Gold)
+            }
+        }
+        androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }, modifier = Modifier.background(C.Panel2)) {
+            options.forEach { (k, v) ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(v, style = body(14, if (v == value) FontWeight.ExtraBold else FontWeight.Bold, if (v == value) C.Gold else C.Text)) },
+                    onClick = { open = false; pick(k) },
+                )
+            }
         }
     }
 }

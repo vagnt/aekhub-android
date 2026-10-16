@@ -67,26 +67,36 @@ fun PostRow(p: PostCard, onClick: () -> Unit) {
     }
 }
 
-/** Μπάρα ζωντανού αγώνα στην αρχική. */
+/** Ζωντανός αγώνας στην αρχική: σήματα, σκορ, λεπτό/δεκάλεπτο, άθλημα και διοργάνωση. */
 @Composable
 fun LiveBar(m: MatchCard, onClick: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(16.dp))
+    val shape = RoundedCornerShape(18.dp)
+    Column(
+        Modifier.fillMaxWidth().clip(shape).background(Brush.verticalGradient(listOf(Color(0xFF2A1513), C.Panel))).border(1.5.dp, C.Live, shape)
             .clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            LiveDot()
-            Text(liveMinute(m.clock, m.minute.ifBlank { "LIVE" }).let { if (it == "LIVE") it else "LIVE $it" }, style = body(11, FontWeight.ExtraBold, C.Live))
-        }
-        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            Text(m.home.upperGr(), style = disp(20), color = if (m.aek == "home") C.Gold else C.Text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, false))
-            Box(Modifier.padding(horizontal = 8.dp).clip(RoundedCornerShape(8.dp)).background(C.Gold).padding(horizontal = 10.dp, vertical = 2.dp)) {
-                Text("${m.scoreHome.ifBlank { "0" }} – ${m.scoreAway.ifBlank { "0" }}", style = disp(20), color = C.Ink)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.clip(RoundedCornerShape(6.dp)).background(C.Live).padding(horizontal = 8.dp, vertical = 3.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                LiveDot(Color.White)
+                val mn = liveMinute(m.clock, m.minute)
+                Text(("LIVE · " + mn.ifBlank { m.phase.ifBlank { m.statusLabel } }).upperGr().trimEnd(' ', '·'), style = body(11, FontWeight.ExtraBold, Color.White))
             }
-            Text(m.away.upperGr(), style = disp(20), color = if (m.aek == "away") C.Gold else C.Text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, false))
+            Text(matchMeta(m), Modifier.weight(1f), style = body(11, FontWeight.ExtraBold, C.Gold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = C.Muted)
         }
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = C.Muted)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Crest(m.homeLogo, m.home, 40.dp)
+                Text(m.home.upperGr(), style = disp(18), color = if (m.aek == "home") C.Gold else C.Text, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            Text("${m.scoreHome.ifBlank { "0" }} : ${m.scoreAway.ifBlank { "0" }}", Modifier.padding(horizontal = 8.dp), style = disp(36, FontWeight.Black), color = C.Text)
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+                Text(m.away.upperGr(), style = disp(18), color = if (m.aek == "away") C.Gold else C.Text, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.End)
+                Crest(m.awayLogo, m.away, 40.dp)
+            }
+        }
     }
 }
 

@@ -57,6 +57,7 @@ import gr.aekhub.app.data.MatchCard
 import gr.aekhub.app.data.PostCard
 import gr.aekhub.app.ui.components.CategoryMenu
 import gr.aekhub.app.ui.components.SocialSection
+import gr.aekhub.app.ui.components.SocialStrip
 import gr.aekhub.app.ui.components.catIcon
 import gr.aekhub.app.ui.components.LiveMatchHero
 import gr.aekhub.app.ui.components.LiveEventHero
@@ -78,8 +79,8 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: () -> Unit, openSettings: () -> Unit, openFeed: () -> Unit, openMatches: () -> Unit, openCat: (String, String) -> Unit, openEvent: (Long) -> Unit) {
-    var config by remember { mutableStateOf<AppConfig?>(null) }
-    var home by remember { mutableStateOf<HomeData?>(null) }
+    var config by remember { mutableStateOf(Api.configNow()) }
+    var home by remember { mutableStateOf(Api.peek<HomeData>(Api.pHome())) }
     var error by remember { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
     var live by remember { mutableStateOf<List<MatchCard>>(emptyList()) }
@@ -110,12 +111,13 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
                 h == null && error -> ErrorBox { key++ }
                 h == null -> Loading()
                 else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (h.socials.isNotEmpty()) item(key = "soctop") { SocialStrip(h.socials) }
                     // Μενού κατηγοριών (πλακίδια με τα εικονίδια του site)
                     val cats = config?.categories ?: emptyList()
                     if (cats.isNotEmpty()) item(key = "menu") {
                         Box(Modifier.padding(horizontal = 0.dp)) {
-                            CategoryMenu(cats.map { Triple(it.slug, it.name, it.icon) } + Triple("__prog", "Πρόγραμμα", "programma"),
-                                { slug, name -> if (slug == "__prog") openMatches() else openCat(slug, name) }, Modifier.padding(bottom = 2.dp).padding(horizontal = 0.dp))
+                            CategoryMenu(cats.map { Triple(it.slug, it.name, it.icon) },
+                                { slug, name -> openCat(slug, name) }, Modifier.padding(bottom = 2.dp).padding(horizontal = 0.dp))
                         }
                     }
                     // Όπως στο site: όσο τρέχει live αγώνας/γεγονός με «Hero», μπαίνει στη θέση του κύριου θέματος
@@ -189,7 +191,11 @@ fun FeedScreen(back: () -> Unit, openPost: (Long) -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NewsList(cat: String?, openPost: (Long) -> Unit, ads: AdsConfig?) {
-    val items = remember(cat) { mutableStateListOf<PostCard>() }
+    val items = remember(cat) {
+        mutableStateListOf<PostCard>().apply {
+            Api.peek<gr.aekhub.app.data.Feed>(Api.pFeed(cat))?.let { f -> addAll(((listOfNotNull(f.featured)) + f.items).distinctBy { it.id }.sortedByDescending { it.date }) }
+        }
+    }
     var page by remember(cat) { mutableIntStateOf(0) }
     var pages by remember(cat) { mutableIntStateOf(1) }
     var loading by remember(cat) { mutableStateOf(false) }
