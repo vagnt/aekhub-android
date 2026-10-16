@@ -98,15 +98,21 @@ fun MeScreen(openPost: (Long) -> Unit) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 SectionLabel("ΤΜΗΜΑΤΑ ΠΟΥ ΑΚΟΛΟΥΘΩ")
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    (config?.sports ?: emptyList()).forEach { sp ->
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(18.dp))) {
+                    val list = config?.sports ?: emptyList()
+                    list.forEachIndexed { idx, sp ->
                         val on = sp.key in s.sports
-                        Box(
-                            Modifier.heightIn(min = 44.dp).clip(RoundedCornerShape(999.dp))
-                                .then(if (on) Modifier.background(C.Gold) else Modifier.border(1.dp, C.Line2, RoundedCornerShape(999.dp)))
-                                .clickable { scope.launch { prefs.toggleSport(sp.key) } }.padding(horizontal = 16.dp, vertical = 12.dp),
-                            contentAlignment = Alignment.Center,
-                        ) { Text(sp.name, style = body(14, if (on) FontWeight.ExtraBold else FontWeight.Bold, if (on) C.Ink else C.Text2)) }
+                        Row(
+                            Modifier.fillMaxWidth().clickable { scope.launch { prefs.toggleSport(sp.key) } }.padding(horizontal = 8.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            androidx.compose.material3.Checkbox(
+                                checked = on, onCheckedChange = { scope.launch { prefs.toggleSport(sp.key) } },
+                                colors = androidx.compose.material3.CheckboxDefaults.colors(checkedColor = C.Gold, checkmarkColor = C.Ink, uncheckedColor = C.Line2),
+                            )
+                            Text(sp.name, style = body(15, if (on) FontWeight.ExtraBold else FontWeight.Bold, if (on) C.Text else C.Text2))
+                        }
+                        if (idx < list.lastIndex) HorizontalDivider(Modifier.padding(start = 56.dp, end = 16.dp), thickness = 1.dp, color = C.Line)
                     }
                 }
             }

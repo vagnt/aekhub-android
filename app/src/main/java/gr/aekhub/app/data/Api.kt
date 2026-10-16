@@ -59,7 +59,7 @@ object Api {
     // Διαδρομές (ίδιες με τις κλήσεις) για να διαβάζουν οι οθόνες τα αποθηκευμένα
     fun pHome() = "/home"
     fun pStandings() = "/standings"
-    fun pFeed(cat: String?) = "/feed?page=1" + (if (cat.isNullOrEmpty()) "" else "&cat=" + q(cat))
+    fun pFeed(cat: String?) = "/feed?page=1&per=12" + (if (cat.isNullOrEmpty()) "" else "&cat=" + q(cat))
     fun pMatch(id: Long) = "/match/$id"
     fun pPost(id: Long) = "/post/$id"
     fun pMatches(from: String?, to: String?, sport: String?) = "/matches" + buildList {
@@ -80,7 +80,7 @@ object Api {
     /** Ρυθμίσεις χωρίς αναμονή (από την προηγούμενη φορά). */
     fun configNow(): AppConfig? = cfg ?: peek<AppConfig>("/config")
     suspend fun feed(cat: String?, page: Int, fresh: Boolean = false): Feed =
-        json.decodeFromString(get("/feed?page=$page" + (if (cat.isNullOrEmpty()) "" else "&cat=" + q(cat)), fresh))
+        json.decodeFromString(get("/feed?page=$page&per=12" + (if (cat.isNullOrEmpty()) "" else "&cat=" + q(cat)), fresh))
     suspend fun search(s: String, page: Int = 1): Feed = json.decodeFromString(get("/feed?page=$page&s=" + q(s)))
     suspend fun post(id: Long, fresh: Boolean = false): Post = json.decodeFromString(get("/post/$id", fresh))
     suspend fun matches(from: String? = null, to: String? = null, sport: String? = null, fresh: Boolean = false): MatchList {

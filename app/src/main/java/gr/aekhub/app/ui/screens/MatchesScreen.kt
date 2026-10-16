@@ -53,7 +53,7 @@ import gr.aekhub.app.data.Api
 import gr.aekhub.app.data.AppConfig
 import gr.aekhub.app.data.MatchCard
 import gr.aekhub.app.data.Settings
-import gr.aekhub.app.ui.components.ChipRow
+import gr.aekhub.app.ui.components.AekDropdown
 import gr.aekhub.app.ui.components.ErrorBox
 import gr.aekhub.app.ui.components.Loading
 import gr.aekhub.app.ui.components.MatchCardView
@@ -102,6 +102,7 @@ fun MatchesScreen(openMatch: (Long) -> Unit) {
             delay(if (list?.any { it.live } == true) 20_000 else 120_000)
         }
     }
+    LaunchedEffect(sport) { gr.aekhub.app.live.Live.ping.collect { runCatching { list = Api.matches(start.toString(), days.last().toString(), sport.ifEmpty { null }, fresh = true).items } } }
     // Η λωρίδα ημερών ακολουθεί τη σελίδα
     LaunchedEffect(pager.currentPage) { strip.animateScrollToItem((pager.currentPage - 3).coerceAtLeast(0)) }
 
@@ -110,8 +111,8 @@ fun MatchesScreen(openMatch: (Long) -> Unit) {
 
     Column(Modifier.fillMaxSize()) {
         ScreenTitle("Αγώνες", Modifier.padding(start = 16.dp, top = 14.dp, bottom = 8.dp))
-        val chips = listOf("" to "Όλα") + (config?.sports?.map { it.key to it.name } ?: emptyList())
-        ChipRow(chips, sport, { sport = it }, Modifier.padding(bottom = 10.dp))
+        val opts = listOf("" to "Όλα τα αθλήματα") + (config?.sports?.map { it.key to it.name } ?: emptyList())
+        AekDropdown("ΑΘΛΗΜΑ", opts.firstOrNull { it.first == sport }?.second ?: "Όλα τα αθλήματα", opts, Modifier.padding(start = 16.dp, end = 16.dp, bottom = 10.dp).fillMaxWidth()) { sport = it }
 
         // Λωρίδα ημερών
         LazyRow(state = strip, contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {

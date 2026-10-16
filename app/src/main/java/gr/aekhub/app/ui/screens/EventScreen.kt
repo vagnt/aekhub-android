@@ -74,6 +74,7 @@ fun EventScreen(id: Long, back: () -> Unit) {
             delay(if (ev?.live == true) 10_000 else 120_000)
         }
     }
+    LaunchedEffect(id) { gr.aekhub.app.live.Live.ping.collect { runCatching { ev = Api.event(id, fresh = true) } } }
     val e = ev
     if (e == null) { if (error) ErrorBox { key++ } else Loading(); return }
     popup?.let { u -> VideoDialog(u.title.ifBlank { e.title }, u.embed) { popup = null } }

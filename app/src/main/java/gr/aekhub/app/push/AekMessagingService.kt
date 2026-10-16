@@ -24,6 +24,9 @@ class AekMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(msg: RemoteMessage) {
         val d = msg.data
+        // Κάθε μήνυμα (και το αθόρυβο «sync») ξυπνάει τις ανοιχτές οθόνες να ανανεωθούν τώρα
+        gr.aekhub.app.live.Live.ping()
+        if (d["kind"] == "sync") return
         val title = d["title"] ?: msg.notification?.title ?: return
         val body = d["body"] ?: msg.notification?.body ?: ""
         val kind = d["kind"] ?: "breaking"

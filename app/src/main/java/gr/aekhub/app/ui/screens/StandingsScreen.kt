@@ -46,6 +46,7 @@ import gr.aekhub.app.data.Api
 import gr.aekhub.app.data.Standing
 import gr.aekhub.app.data.StandingRow
 import gr.aekhub.app.ui.components.ChipRow
+import gr.aekhub.app.ui.components.AekDropdown
 import gr.aekhub.app.ui.components.Crest
 import gr.aekhub.app.ui.components.ErrorBox
 import gr.aekhub.app.ui.components.Loading
@@ -67,7 +68,8 @@ fun StandingsScreen() {
     var key by remember { mutableIntStateOf(0) }
     var sport by rememberSaveable { mutableStateOf("") }
     var sel by rememberSaveable { mutableStateOf(0L) }
-    LaunchedEffect(key) { error = false; try { list = Api.standings().items } catch (e: Exception) { error = true } }
+    LaunchedEffect(key) { error = false; try { list = Api.standings().items } catch (e: Exception) { if (list == null) error = true } }
+    LaunchedEffect(Unit) { gr.aekhub.app.live.Live.ping.collect { runCatching { list = Api.standings(fresh = true).items } } }
 
     Column(Modifier.fillMaxSize()) {
         ScreenTitle("Βαθμολογίες", Modifier.padding(start = 16.dp, top = 14.dp, bottom = 8.dp))
@@ -80,8 +82,8 @@ fun StandingsScreen() {
         if (ofSport.none { it.id == sel }) sel = (ofSport.firstOrNull { t -> t.rows.any { it.aek } } ?: ofSport.first()).id
         // Δύο λίστες: Άθλημα → Διοργάνωση (οι διοργανώσεις αλλάζουν ανάλογα με το άθλημα)
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Dropdown("ΑΘΛΗΜΑ", sport, sports.map { it to it }, Modifier.weight(0.8f)) { sport = it }
-            Dropdown("ΔΙΟΡΓΑΝΩΣΗ", ofSport.firstOrNull { it.id == sel }?.let { it.league.ifBlank { it.title } } ?: "",
+            AekDropdown("ΑΘΛΗΜΑ", sport, sports.map { it to it }, Modifier.weight(0.8f)) { sport = it }
+            AekDropdown("ΔΙΟΡΓΑΝΩΣΗ", ofSport.firstOrNull { it.id == sel }?.let { it.league.ifBlank { it.title } } ?: "",
                 ofSport.map { it.id.toString() to it.league.ifBlank { it.title } }, Modifier.weight(1.2f)) { sel = it.toLong() }
         }
         val t = ofSport.first { it.id == sel }
@@ -91,31 +93,6 @@ fun StandingsScreen() {
         ) {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp)) {
                 item(key = "t" + t.id) { Table(t) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun Dropdown(label: String, value: String, options: List<Pair<String, String>>, modifier: Modifier, pick: (String) -> Unit) {
-    var open by remember { mutableStateOf(false) }
-    Box(modifier) {
-        Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(C.Panel).border(1.dp, if (open) C.Gold else C.Line2, RoundedCornerShape(12.dp))
-                .clickable(enabled = options.size > 1) { open = true }.padding(horizontal = 12.dp, vertical = 8.dp),
-        ) {
-            Text(label, style = body(9, FontWeight.ExtraBold, C.Muted).copy(letterSpacing = 1.sp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(value, Modifier.weight(1f), style = body(14, FontWeight.ExtraBold, C.Text), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (options.size > 1) androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.ArrowDropDown, null, tint = C.Gold)
-            }
-        }
-        androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }, modifier = Modifier.background(C.Panel2)) {
-            options.forEach { (k, v) ->
-                androidx.compose.material3.DropdownMenuItem(
-                    text = { Text(v, style = body(14, if (v == value) FontWeight.ExtraBold else FontWeight.Bold, if (v == value) C.Gold else C.Text)) },
-                    onClick = { open = false; pick(k) },
-                )
             }
         }
     }

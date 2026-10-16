@@ -93,6 +93,9 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
     }
     LaunchedEffect(Unit) { runCatching { config = Api.config() } }
     LaunchedEffect(key) { load() }
+    // Άμεση ανανέωση όταν αλλάξει κάτι στο site + κάθε 60″ για σιγουριά
+    LaunchedEffect(Unit) { gr.aekhub.app.live.Live.ping.collect { load(fresh = true) } }
+    LaunchedEffect(Unit) { while (true) { delay(60_000); load(fresh = true) } }
     LaunchedEffect(key) {
         while (true) { runCatching { live = Api.matches().items.filter { it.live && it.aek.isNotEmpty() } }; delay(30_000) }
     }
@@ -219,8 +222,7 @@ private fun NewsList(cat: String?, openPost: (Long) -> Unit, ads: AdsConfig?) {
         loading = false
     }
     LaunchedEffect(cat, key) { load(true) }
-    val nearEnd by remember { derivedStateOf { (listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) >= listState.layoutInfo.totalItemsCount - 4 } }
-    LaunchedEffect(nearEnd, page) { if (nearEnd && page in 1 until pages) load(false) }
+    LaunchedEffect(cat) { gr.aekhub.app.live.Live.ping.collect { if (page <= 1) load(true, fresh = true) } }
 
     PullToRefreshBox(isRefreshing = refreshing, onRefresh = { scope.launch { refreshing = true; load(true, fresh = true); refreshing = false } }, modifier = Modifier.fillMaxSize()) {
         when {
@@ -233,7 +235,15 @@ private fun NewsList(cat: String?, openPost: (Long) -> Unit, ads: AdsConfig?) {
                         if (ads != null && ads.enabled && (i + 1) % ads.everyN.coerceAtLeast(4) == 0) BannerAd(ads)
                     }
                 }
-                if (page < pages) item(key = "more") { Box(Modifier.fillMaxWidth().height(64.dp)) { Loading() } }
+                // Όχι ατελείωτο scroll: κουμπί για τα επόμενα
+                if (page < pages) item(key = "more") {
+                    Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
+                        if (loading) Box(Modifier.height(48.dp)) { Loading() }
+                        else Box(Modifier.clip(RoundedCornerShape(12.dp)).background(C.Gold).clickable { scope.launch { load(false) } }.padding(horizontal = 22.dp, vertical = 12.dp)) {
+                            Text("ΠΕΡΙΣΣΟΤΕΡΑ ΑΡΘΡΑ", style = body(14, FontWeight.ExtraBold, C.Ink))
+                        }
+                    }
+                }
             }
         }
     }

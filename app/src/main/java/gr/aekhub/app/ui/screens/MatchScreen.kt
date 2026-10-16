@@ -119,6 +119,7 @@ fun MatchScreen(id: Long, back: () -> Unit) {
             delay(if (m?.live == true) 10_000 else 120_000)
         }
     }
+    LaunchedEffect(id) { gr.aekhub.app.live.Live.ping.collect { runCatching { m = Api.match(id, fresh = true) } } }
     val d = m
     if (d == null) { if (error) ErrorBox { key++ } else Loading(); return }
     val alert = settings.matchAlerts.contains(d.id.toString())

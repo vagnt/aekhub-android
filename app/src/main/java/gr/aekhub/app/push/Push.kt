@@ -36,6 +36,7 @@ object Push {
     }
 
     fun topicsFor(s: Settings): Set<String> = buildSet {
+        add("app_sync") // αθόρυβη άμεση ανανέωση περιεχομένου (χωρίς ειδοποίηση)
         s.sports.forEach { sp ->
             if (s.nGoals) add("m_${sp}_goals")
             if (s.nStartEnd) add("m_${sp}_startend")

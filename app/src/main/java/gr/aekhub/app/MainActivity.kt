@@ -208,6 +208,8 @@ private fun AppRoot(deep: MutableStateFlow<Deep?>) {
                     MatchScreen(it.arguments?.getLong("id") ?: 0L) { nav.popBackStack() }
                 }
             }
+            // Γκολ / έναρξη / τελικό της ΑΕΚ: banner πάνω-πάνω σε κάθε οθόνη
+            gr.aekhub.app.ui.components.LiveScoreBanner(openMatch)
         }
     }
 }
