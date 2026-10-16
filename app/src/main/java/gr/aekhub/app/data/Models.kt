@@ -9,10 +9,20 @@ data class Category(val slug: String, val name: String)
 data class SportItem(val key: String, val name: String)
 
 @Serializable
+data class AdsConfig(
+    val enabled: Boolean = true,
+    val banner: String = "",
+    val everyN: Int = 8,
+    val article: Boolean = true,
+    val matches: Boolean = false,
+)
+
+@Serializable
 data class AppConfig(
     val site: String = "",
     val categories: List<Category> = emptyList(),
     val sports: List<SportItem> = emptyList(),
+    val ads: AdsConfig = AdsConfig(),
 )
 
 @Serializable

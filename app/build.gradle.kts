@@ -4,6 +4,8 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
 }
+// Firebase (ειδοποιήσεις): ενεργό μόλις υπάρχει το app/google-services.json
+if (file("google-services.json").exists()) apply(plugin = "com.google.gms.google-services")
 
 android {
     namespace = "gr.aekhub.app"
@@ -13,9 +15,11 @@ android {
         applicationId = "gr.aekhub.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
         buildConfigField("String", "SITE", "\"https://aekhub.gr\"")
+        // AdMob App ID (δημόσιο αναγνωριστικό). Μέχρι να μπει το δικό μας, το δοκιμαστικό της Google.
+        manifestPlaceholders["admobAppId"] = (project.findProperty("admobAppId") as String?) ?: "ca-app-pub-3940256099942544~3347511713"
     }
 
     // Υπογραφή: αν υπάρχουν τα secrets (GitHub Actions), το release υπογράφεται για το Play Store.
@@ -81,5 +85,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("org.jsoup:jsoup:1.18.1")
+    implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.android.gms:play-services-ads:23.5.0")
+    implementation("com.google.android.ump:user-messaging-platform:3.1.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

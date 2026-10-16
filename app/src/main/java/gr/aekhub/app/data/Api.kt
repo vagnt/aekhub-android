@@ -42,7 +42,14 @@ object Api {
 
     private fun q(v: String) = java.net.URLEncoder.encode(v, "UTF-8")
 
-    suspend fun config(): AppConfig = json.decodeFromString(get("/config"))
+    private var cfg: AppConfig? = null
+    private var cfgAt = 0L
+    /** Ρυθμίσεις από το wp-admin (κατηγορίες, διαφημίσεις): κρατιούνται 5′ στη μνήμη. */
+    suspend fun config(): AppConfig {
+        val c = cfg
+        if (c != null && System.currentTimeMillis() - cfgAt < 300_000) return c
+        return json.decodeFromString<AppConfig>(get("/config")).also { cfg = it; cfgAt = System.currentTimeMillis() }
+    }
     suspend fun feed(cat: String?, page: Int): Feed =
         json.decodeFromString(get("/feed?page=$page" + (if (cat.isNullOrEmpty()) "" else "&cat=" + q(cat))))
     suspend fun search(s: String, page: Int = 1): Feed = json.decodeFromString(get("/feed?page=$page&s=" + q(s)))

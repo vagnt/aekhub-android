@@ -1,6 +1,19 @@
 package gr.aekhub.app
 
+import android.Manifest
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.lifecycleScope
+import gr.aekhub.app.ads.Ads
+import gr.aekhub.app.push.Push
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -56,19 +69,45 @@ import gr.aekhub.app.ui.theme.body
 
 val LocalPrefs = staticCompositionLocalOf<Prefs> { error("Prefs") }
 
+/** Άνοιγμα από ειδοποίηση: άρθρο ή αγώνας. */
+data class Deep(val post: Long = 0, val match: Long = 0, val at: Long = System.nanoTime())
+
 class MainActivity : ComponentActivity() {
+    companion object {
+        const val EXTRA_POST = "aek_post"
+        const val EXTRA_MATCH = "aek_match"
+    }
+
+    private val deep = MutableStateFlow<Deep?>(null)
+
+    private fun readIntent(i: Intent?) {
+        val p = i?.getLongExtra(EXTRA_POST, 0L) ?: 0L
+        val m = i?.getLongExtra(EXTRA_MATCH, 0L) ?: 0L
+        if (p > 0 || m > 0) deep.value = Deep(p, m)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         val ink = C.Ink.toArgb()
         enableEdgeToEdge(SystemBarStyle.dark(ink), SystemBarStyle.dark(ink))
         Api.init(applicationContext)
+        Push.channels(this)
+        Ads.start(this)
         val prefs = Prefs(applicationContext)
+        if (savedInstanceState == null) readIntent(intent)
+        // Οι επιλογές ειδοποιήσεων → θέματα στο Firebase, σε κάθε αλλαγή
+        lifecycleScope.launch { prefs.settings.collect { Push.sync(applicationContext, it) } }
         setContent {
             AekTheme {
-                CompositionLocalProvider(LocalPrefs provides prefs) { AppRoot() }
+                CompositionLocalProvider(LocalPrefs provides prefs) { AppRoot(deep) }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        readIntent(intent)
     }
 }
 
@@ -82,8 +121,24 @@ private val TABS = listOf(
 )
 
 @Composable
-private fun AppRoot() {
+private fun AppRoot(deep: MutableStateFlow<Deep?>) {
     val nav = rememberNavController()
+    val link by deep.collectAsState()
+    LaunchedEffect(link) {
+        val d = link ?: return@LaunchedEffect
+        if (d.post > 0) nav.navigate("post/${d.post}") else if (d.match > 0) nav.navigate("match/${d.match}")
+        deep.value = null
+    }
+    // Android 13+: μία φορά ζητάμε άδεια για ειδοποιήσεις
+    val ctx = LocalContext.current
+    val askPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    LaunchedEffect(Unit) {
+        val sp = ctx.getSharedPreferences("push", android.content.Context.MODE_PRIVATE)
+        if (Build.VERSION.SDK_INT >= 33 && !Push.allowed(ctx) && !sp.getBoolean("asked", false)) {
+            sp.edit().putBoolean("asked", true).apply()
+            askPerm.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route
     val showBar = TABS.any { it.route == route }

@@ -50,6 +50,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import gr.aekhub.app.LocalPrefs
 import gr.aekhub.app.data.Api
+import gr.aekhub.app.data.AdsConfig
+import gr.aekhub.app.ads.BannerAd
 import gr.aekhub.app.data.Post
 import gr.aekhub.app.data.Settings
 import gr.aekhub.app.ui.components.Block
@@ -75,6 +77,8 @@ fun ArticleScreen(id: Long, back: () -> Unit) {
     var blocks by remember { mutableStateOf<List<Block>>(emptyList()) }
     var error by remember { mutableStateOf(false) }
     var key by remember { mutableIntStateOf(0) }
+    var ads by remember { mutableStateOf<AdsConfig?>(null) }
+    LaunchedEffect(Unit) { runCatching { ads = Api.config().ads } }
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
 
@@ -114,7 +118,13 @@ fun ArticleScreen(id: Long, back: () -> Unit) {
                     Box(Modifier.fillMaxWidth().height(1.dp).background(C.Line))
                 }
             }
-            items(blocks.size) { i -> Box(Modifier.offset(y = (-48).dp)) { BlockView(blocks[i], scale) } }
+            items(blocks.size) { i ->
+                Column(Modifier.offset(y = (-48).dp)) {
+                    BlockView(blocks[i], scale)
+                    val a = ads
+                    if (a != null && a.article && (i == 2 && blocks.size > 5 || i == blocks.size - 1)) BannerAd(a, medium = true, modifier = Modifier.padding(top = 16.dp))
+                }
+            }
         }
 
         // Πάνω κουμπιά

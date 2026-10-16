@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import gr.aekhub.app.ads.BannerAd
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.NotificationsNone
@@ -119,7 +121,13 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
                     if (cat.isEmpty()) items(live, key = { "live" + it.id }) { m -> LiveBar(m) { openMatch(m.id) } }
                     featured?.let { f -> item(key = "feat") { Box(Modifier.padding(top = 4.dp, bottom = 6.dp)) { FeaturedCard(f) { openPost(f.id) } } } }
                     item(key = "hdr") { Text(if (cat.isEmpty()) "ΤΕΛΕΥΤΑΙΑ" else (chips.firstOrNull { it.first == cat }?.second ?: "").uppercase(), style = disp(22), color = C.Text, modifier = Modifier.padding(top = 6.dp)) }
-                    items(items, key = { it.id }) { p -> PostRow(p) { openPost(p.id) } }
+                    itemsIndexed(items, key = { _, p -> p.id }) { i, p ->
+                        Column {
+                            PostRow(p) { openPost(p.id) }
+                            val ads = config?.ads
+                            if (ads != null && ads.enabled && (i + 1) % ads.everyN.coerceAtLeast(4) == 0) BannerAd(ads)
+                        }
+                    }
                     if (page < pages) item(key = "more") { Box(Modifier.fillMaxWidth().height(64.dp)) { Loading() } }
                 }
             }

@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import gr.aekhub.app.LocalPrefs
 import gr.aekhub.app.data.Api
+import gr.aekhub.app.ads.BannerAd
 import gr.aekhub.app.data.AppConfig
 import gr.aekhub.app.data.MatchCard
 import gr.aekhub.app.data.Settings
@@ -122,7 +123,10 @@ fun MatchesScreen(openMatch: (Long) -> Unit) {
                 }
                 Box(Modifier.fillMaxWidth().padding(top = 10.dp).height(1.dp).background(C.Line))
                 LazyColumn(state = listState, contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    var di = 0
                     byDay.forEach { (d, ms) ->
+                        val showAd = di++ == 1 && config?.ads?.matches == true
+                        if (showAd) item(key = "ad") { BannerAd(config!!.ads) }
                         item(key = "d$d") {
                             val date = runCatching { LocalDate.parse(d) }.getOrNull()
                             val past = date != null && date < today

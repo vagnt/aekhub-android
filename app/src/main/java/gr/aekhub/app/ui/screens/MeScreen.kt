@@ -1,5 +1,16 @@
 package gr.aekhub.app.ui.screens
 
+import android.Manifest
+import android.app.Activity
+import android.content.Intent
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import gr.aekhub.app.ads.Ads
+import gr.aekhub.app.push.Push
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -38,7 +49,7 @@ import gr.aekhub.app.BuildConfig
 import gr.aekhub.app.LocalPrefs
 import gr.aekhub.app.data.Api
 import gr.aekhub.app.data.AppConfig
-import gr.aekhub.app.data.Settings
+import gr.aekhub.app.data.Settings as AppSettings
 import gr.aekhub.app.ui.components.PostRow
 import gr.aekhub.app.ui.components.ScreenTitle
 import gr.aekhub.app.ui.components.SectionLabel
@@ -50,16 +61,37 @@ import kotlinx.coroutines.launch
 @Composable
 fun MeScreen(openPost: (Long) -> Unit) {
     val prefs = LocalPrefs.current
-    val s by prefs.settings.collectAsState(initial = Settings())
+    val s by prefs.settings.collectAsState(initial = AppSettings())
     var config by remember { mutableStateOf<AppConfig?>(null) }
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { runCatching { config = Api.config() } }
+    val ctx = LocalContext.current
+    val pushOn = remember { Push.available(ctx) }
+    var allowed by remember { mutableStateOf(Push.allowed(ctx)) }
+    var askedOnce by remember { mutableStateOf(false) }
+    val askPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { allowed = it }
+    val privacy by Ads.privacyButton.collectAsState()
+    LifecycleResumeEffect(Unit) { allowed = Push.allowed(ctx); onPauseOrDispose { } }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         item { ScreenTitle("Ειδοποιήσεις", Modifier.padding(top = 14.dp)) }
         item {
-            Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(C.Panel2).padding(14.dp)) {
-                Text("Οι ειδοποιήσεις push ενεργοποιούνται στην επόμενη έκδοση. Οι επιλογές σου αποθηκεύονται ήδη από τώρα.", style = body(13, color = C.Text2))
+            val msg = when {
+                !pushOn -> "Το app δεν έχει ακόμη συνδεθεί με την υπηρεσία ειδοποιήσεων. Οι επιλογές σου αποθηκεύονται και ενεργοποιούνται μόλις συνδεθεί."
+                !allowed -> "Οι ειδοποιήσεις είναι κλειστές για το AEK Hub στο κινητό σου."
+                else -> null
+            }
+            if (msg != null) Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(C.Panel2).padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(msg, style = body(13, color = C.Text2))
+                if (pushOn && !allowed) Box(
+                    Modifier.clip(RoundedCornerShape(10.dp)).background(C.Gold).clickable {
+                        if (Build.VERSION.SDK_INT >= 33 && !askedOnce) { askedOnce = true; askPerm.launch(Manifest.permission.POST_NOTIFICATIONS) }
+                        else ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName))
+                    }.padding(horizontal = 16.dp, vertical = 10.dp)
+                ) { Text("Άνοιξέ τες", style = body(14, FontWeight.ExtraBold, C.Ink)) }
             }
         }
         item {
@@ -95,6 +127,10 @@ fun MeScreen(openPost: (Long) -> Unit) {
         item { SectionLabel("ΑΠΟΘΗΚΕΥΜΕΝΑ ΑΡΘΡΑ") }
         if (s.saved.isEmpty()) item { Text("Πάτα το σημαδάκι σε ένα άρθρο για να το βρίσκεις εδώ.", style = body(14, color = C.Muted)) }
         items(s.saved, key = { "s" + it.id }) { p -> PostRow(p) { openPost(p.id) } }
+        if (privacy) item {
+            Text("Ρυθμίσεις απορρήτου διαφημίσεων", Modifier.clickable { (ctx as? Activity)?.let { Ads.showPrivacy(it) } }.padding(vertical = 8.dp),
+                style = body(14, FontWeight.Bold, C.Gold))
+        }
         item { Text("AEK Hub " + BuildConfig.VERSION_NAME, Modifier.padding(top = 12.dp), style = body(12, color = C.Muted)) }
     }
 }
