@@ -91,7 +91,7 @@ fun BannerAd(cfg: AdsConfig, medium: Boolean = false, modifier: Modifier = Modif
                 modifier = Modifier.fillMaxWidth(),
                 factory = { ctx ->
                     AdView(ctx).apply {
-                        setAdSize(if (medium) AdSize.MEDIUM_RECTANGLE else AdSize.getCurrentOrientationAnchoredAdaptiveBannerSize(ctx, w))
+                        setAdSize(if (medium) AdSize.MEDIUM_RECTANGLE else AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(ctx, w))
                         adUnitId = unit
                         adListener = object : AdListener() {
                             override fun onAdLoaded() { loaded = true }
