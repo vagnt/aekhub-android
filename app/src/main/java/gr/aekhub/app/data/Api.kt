@@ -18,7 +18,8 @@ object Api {
 
     val json = Json { ignoreUnknownKeys = true; coerceInputValues = true; explicitNulls = false }
 
-    private lateinit var http: OkHttpClient
+    lateinit var http: OkHttpClient
+        private set
 
     fun init(ctx: Context) {
         if (::http.isInitialized) return
@@ -32,8 +33,10 @@ object Api {
             .build()
     }
 
-    private suspend fun get(path: String): String = withContext(Dispatchers.IO) {
-        val req = Request.Builder().url(BASE + path).build()
+    /** fresh = τράβηγμα για ανανέωση: παρακάμπτει κάθε cache (κινητού και server). */
+    private suspend fun get(path: String, fresh: Boolean = false): String = withContext(Dispatchers.IO) {
+        val url = BASE + path + if (fresh) (if ('?' in path) "&" else "?") + "_=" + System.currentTimeMillis() else ""
+        val req = Request.Builder().url(url).apply { if (fresh) cacheControl(okhttp3.CacheControl.FORCE_NETWORK) }.build()
         http.newCall(req).execute().use { r ->
             if (!r.isSuccessful) throw IOException("HTTP " + r.code)
             r.body?.string() ?: throw IOException("Κενή απάντηση")
@@ -50,19 +53,20 @@ object Api {
         if (c != null && System.currentTimeMillis() - cfgAt < 300_000) return c
         return json.decodeFromString<AppConfig>(get("/config")).also { cfg = it; cfgAt = System.currentTimeMillis() }
     }
-    suspend fun feed(cat: String?, page: Int): Feed =
-        json.decodeFromString(get("/feed?page=$page" + (if (cat.isNullOrEmpty()) "" else "&cat=" + q(cat))))
+    suspend fun feed(cat: String?, page: Int, fresh: Boolean = false): Feed =
+        json.decodeFromString(get("/feed?page=$page" + (if (cat.isNullOrEmpty()) "" else "&cat=" + q(cat)), fresh))
     suspend fun search(s: String, page: Int = 1): Feed = json.decodeFromString(get("/feed?page=$page&s=" + q(s)))
     suspend fun post(id: Long): Post = json.decodeFromString(get("/post/$id"))
-    suspend fun matches(from: String? = null, to: String? = null, sport: String? = null): MatchList {
+    suspend fun matches(from: String? = null, to: String? = null, sport: String? = null, fresh: Boolean = false): MatchList {
         val p = buildList {
             if (from != null) add("from=$from")
             if (to != null) add("to=$to")
             if (!sport.isNullOrEmpty()) add("sport=" + q(sport))
         }.joinToString("&")
-        return json.decodeFromString(get("/matches" + if (p.isEmpty()) "" else "?$p"))
+        return json.decodeFromString(get("/matches" + if (p.isEmpty()) "" else "?$p", fresh))
     }
-    suspend fun match(id: Long): MatchDetail = json.decodeFromString(get("/match/$id"))
-    suspend fun home(): HomeData = json.decodeFromString(get("/home"))
-    suspend fun standings(): StandingsList = json.decodeFromString(get("/standings"))
+    suspend fun match(id: Long, fresh: Boolean = false): MatchDetail = json.decodeFromString(get("/match/$id", fresh))
+    suspend fun home(fresh: Boolean = false): HomeData = json.decodeFromString(get("/home", fresh))
+    suspend fun event(id: Long): EventDetail = json.decodeFromString(get("/event/$id"))
+    suspend fun standings(fresh: Boolean = false): StandingsList = json.decodeFromString(get("/standings", fresh))
 }

@@ -104,6 +104,8 @@ fun MatchScreen(id: Long, back: () -> Unit) {
     var error by remember { mutableStateOf(false) }
     var key by remember { mutableIntStateOf(0) }
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    var popup by remember { mutableStateOf<gr.aekhub.app.data.Highlight?>(null) }
+    var playStream by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
     fun open(url: String) = runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
@@ -125,17 +127,18 @@ fun MatchScreen(id: Long, back: () -> Unit) {
     }
     if (tab >= tabs.size) tab = 0
 
+    popup?.let { h -> gr.aekhub.app.ui.components.VideoDialog(h.title, h.embed) { popup = null } }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item(key = "hero") {
             Hero(d, alert, back) { scope.launch { prefs.toggleMatchAlert(d.id) } }
         }
-        d.stream?.let { s -> item(key = "stream") { StreamCard(s.thumb, s.label, s.kicker, s.state) { open(s.url) } } }
+        d.stream?.let { s -> item(key = "stream") { StreamCard(s.thumb, s.label, s.kicker, s.state, if (playStream && s.embed.isNotBlank()) s.embed else null) { if (s.embed.isNotBlank()) playStream = true else open(s.url) } } }
         if (d.highlights.isNotEmpty()) item(key = "hl") {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 SectionTitle("Στιγμιότυπα")
                 LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(d.highlights) { h ->
-                        Column(Modifier.width(210.dp).clickable { open(h.url) }, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(Modifier.width(210.dp).clickable { if (h.embed.isNotBlank()) popup = h else open(h.url) }, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(12.dp)).background(C.Panel2), contentAlignment = Alignment.Center) {
                                 if (h.thumb.isNotBlank()) AsyncImage(h.thumb, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                                 Box(Modifier.size(40.dp).clip(CircleShape).background(C.Gold), contentAlignment = Alignment.Center) { Icon(Icons.Filled.PlayArrow, "Αναπαραγωγή", tint = C.Ink) }
@@ -161,8 +164,21 @@ fun MatchScreen(id: Long, back: () -> Unit) {
             "Συνθέσεις" -> item(key = "lu") { LineupsView(d) }
             else -> {
                 if (d.events.isEmpty()) item(key = "noev") {
-                    Text(if (d.status == "upcoming") "Η πορεία του αγώνα θα εμφανιστεί εδώ μόλις ξεκινήσει." else "Δεν υπάρχουν γεγονότα.",
-                        Modifier.padding(horizontal = 20.dp, vertical = 12.dp), style = body(14, color = C.Muted))
+                    val (t1, t2) = when {
+                        !d.timeline && d.status == "finished" -> "Μόνο αποτέλεσμα" to "Ο αγώνας δεν καλύφθηκε live. Υπάρχει μόνο το τελικό αποτέλεσμα."
+                        !d.timeline -> "Χωρίς live κάλυψη" to "Αυτός ο αγώνας δεν καλύπτεται live. Θα δεις εδώ το τελικό αποτέλεσμα."
+                        d.status == "upcoming" -> "Η πορεία έρχεται" to "Τα γεγονότα του αγώνα θα εμφανίζονται εδώ μόλις ξεκινήσει."
+                        d.status == "finished" -> "Μόνο αποτέλεσμα" to "Για αυτόν τον αγώνα δεν καταγράφηκε πορεία. Υπάρχει μόνο το τελικό αποτέλεσμα."
+                        else -> "Αναμονή γεγονότων" to "Ο αγώνας είναι σε εξέλιξη. Τα γεγονότα θα εμφανιστούν εδώ."
+                    }
+                    Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(16.dp)).padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Box(Modifier.size(44.dp).clip(CircleShape).background(C.Panel3), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Info, null, tint = C.Gold) }
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(t1.upperGr(), style = disp(18), color = C.Text)
+                            Text(t2, style = body(13, color = C.Text2))
+                        }
+                    }
                 } else {
                     item(key = "tlh") { TimelineHeader(d) }
                     // Ζωντανά: το πιο πρόσφατο πάνω. Τελικό: από την αρχή προς το τέλος (όπως στο site).
@@ -179,8 +195,10 @@ fun MatchScreen(id: Long, back: () -> Unit) {
 @Composable
 private fun Hero(d: MatchDetail, alert: Boolean, back: () -> Unit, toggleAlert: () -> Unit) {
     Box(Modifier.fillMaxWidth()) {
-        if (d.bg.isNotBlank()) AsyncImage(d.bg, null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
-        Box(Modifier.matchParentSize().background(Brush.verticalGradient(0f to C.Ink.copy(alpha = 0.82f), 0.6f to C.Ink.copy(alpha = 0.88f), 1f to C.Ink)))
+        // Ίδιο φόντο με το site, μέσα στο app (φαίνεται πάντα, ακόμα και χωρίς σύνδεση)
+        androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(gr.aekhub.app.R.drawable.match_hero_bg), null, Modifier.matchParentSize(), contentScale = ContentScale.Crop, alignment = Alignment.TopCenter)
+        Box(Modifier.matchParentSize().background(Brush.verticalGradient(0f to C.Ink.copy(alpha = 0.55f), 0.55f to C.Ink.copy(alpha = 0.86f), 1f to C.Ink)))
+        Box(Modifier.matchParentSize().background(Brush.radialGradient(listOf(C.Gold.copy(alpha = 0.16f), Color.Transparent), center = Offset(540f, 0f), radius = 700f)))
         Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(2.dp).background(Brush.horizontalGradient(listOf(Color.Transparent, C.Gold, Color.Transparent))))
         Column(Modifier.fillMaxWidth().padding(bottom = 18.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -281,7 +299,7 @@ private fun SectionTitle(t: String) = Row(Modifier.padding(horizontal = 16.dp), 
 /* ─────────── Live stream ─────────── */
 
 @Composable
-private fun StreamCard(thumb: String, label: String, kicker: String, state: String, onClick: () -> Unit) {
+private fun StreamCard(thumb: String, label: String, kicker: String, state: String, playing: String?, onClick: () -> Unit) {
     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.clip(RoundedCornerShape(6.dp)).background(if (state == "live") C.Live else C.Panel3).padding(horizontal = 8.dp, vertical = 3.dp),
@@ -291,7 +309,8 @@ private fun StreamCard(thumb: String, label: String, kicker: String, state: Stri
             }
             Text(label.upperGr(), style = disp(20), color = C.Text, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(16.dp)).background(C.Panel2).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
+        if (playing != null) Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))) { gr.aekhub.app.ui.components.VideoPlayer(playing) }
+        else Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(16.dp)).background(C.Panel2).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
             if (thumb.isNotBlank()) AsyncImage(thumb, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             Box(Modifier.fillMaxSize().background(C.Ink.copy(alpha = 0.35f)))
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -456,22 +475,9 @@ private fun LineupsView(d: MatchDetail) {
 private fun PitchView(d: MatchDetail, p: gr.aekhub.app.data.Pitch) {
     val homeBg = hex(d.homeColor, C.Text2); val homeFg = hex(d.homeNum, C.Ink)
     val awayBg = hex(d.awayColor, C.Gold); val awayFg = hex(d.awayNum, C.Ink)
-    BoxWithConstraints(Modifier.fillMaxWidth().aspectRatio(0.68f).clip(RoundedCornerShape(16.dp))) {
+    BoxWithConstraints(Modifier.fillMaxWidth().aspectRatio(500f / 698f).clip(RoundedCornerShape(16.dp))) {
         val w = maxWidth; val h = maxHeight
-        Canvas(Modifier.fillMaxSize()) {
-            val stripes = 10
-            for (i in 0 until stripes) drawRect(if (i % 2 == 0) Color(0xFF2E7D32) else Color(0xFF2A732E), Offset(0f, size.height * i / stripes), Size(size.width, size.height / stripes))
-            val line = Color.White.copy(alpha = 0.55f); val sw = 2.dp.toPx(); val m = 10.dp.toPx()
-            drawRect(line, Offset(m, m), Size(size.width - 2 * m, size.height - 2 * m), style = Stroke(sw))
-            drawLine(line, Offset(m, size.height / 2), Offset(size.width - m, size.height / 2), sw)
-            drawCircle(line, size.width * 0.15f, Offset(size.width / 2, size.height / 2), style = Stroke(sw))
-            val bw = size.width * 0.56f; val bh = size.height * 0.13f
-            drawRect(line, Offset((size.width - bw) / 2, m), Size(bw, bh), style = Stroke(sw))
-            drawRect(line, Offset((size.width - bw) / 2, size.height - m - bh), Size(bw, bh), style = Stroke(sw))
-            val gw = size.width * 0.26f; val gh = size.height * 0.05f
-            drawRect(line, Offset((size.width - gw) / 2, m), Size(gw, gh), style = Stroke(sw))
-            drawRect(line, Offset((size.width - gw) / 2, size.height - m - gh), Size(gw, gh), style = Stroke(sw))
-        }
+        androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(gr.aekhub.app.R.drawable.pitch_bg), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         // Γηπεδούχοι πάνω (καθρέφτης), φιλοξενούμενοι κάτω — όπως στο site
         p.home.forEach { pl -> Dot(pl, (100f - pl.x) / 100f * w.value, pl.y / 100f * (h.value / 2f) * 0.92f + h.value * 0.03f, homeBg, homeFg) }
         p.away.forEach { pl -> Dot(pl, pl.x / 100f * w.value, h.value - (pl.y / 100f * (h.value / 2f) * 0.92f + h.value * 0.03f), awayBg, awayFg) }

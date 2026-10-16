@@ -55,7 +55,11 @@ import gr.aekhub.app.data.AppConfig
 import gr.aekhub.app.data.HomeData
 import gr.aekhub.app.data.MatchCard
 import gr.aekhub.app.data.PostCard
-import gr.aekhub.app.ui.components.ChipRow
+import gr.aekhub.app.ui.components.CategoryMenu
+import gr.aekhub.app.ui.components.SocialSection
+import gr.aekhub.app.ui.components.catIcon
+import gr.aekhub.app.ui.components.LiveMatchHero
+import gr.aekhub.app.ui.components.LiveEventHero
 import gr.aekhub.app.ui.components.ErrorBox
 import gr.aekhub.app.ui.components.FeaturedCard
 import gr.aekhub.app.ui.components.GoldHeader
@@ -73,9 +77,8 @@ import kotlinx.coroutines.launch
 /** Αρχική: ενότητες ανά κατηγορία, όπως το site. Τα chips ανοίγουν τη ροή μιας κατηγορίας. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: () -> Unit, openSettings: () -> Unit, openFeed: () -> Unit, openMatches: () -> Unit) {
+fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: () -> Unit, openSettings: () -> Unit, openFeed: () -> Unit, openMatches: () -> Unit, openCat: (String, String) -> Unit, openEvent: (Long) -> Unit) {
     var config by remember { mutableStateOf<AppConfig?>(null) }
-    var cat by rememberSaveable { mutableStateOf("") }
     var home by remember { mutableStateOf<HomeData?>(null) }
     var error by remember { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
@@ -83,7 +86,10 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
     var key by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
 
-    suspend fun load() { try { home = Api.home(); error = false } catch (e: Exception) { if (home == null) error = true } }
+    suspend fun load(fresh: Boolean = false) {
+        try { home = Api.home(fresh); error = false } catch (e: Exception) { if (home == null) error = true }
+        if (fresh) runCatching { live = Api.matches(fresh = true).items.filter { it.live && it.aek.isNotEmpty() } }
+    }
     LaunchedEffect(Unit) { runCatching { config = Api.config() } }
     LaunchedEffect(key) { load() }
     LaunchedEffect(key) {
@@ -98,19 +104,29 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
             IconButton(onClick = openSearch) { Icon(Icons.Outlined.Search, "Αναζήτηση", tint = C.Text) }
             IconButton(onClick = openSettings) { Icon(Icons.Outlined.NotificationsNone, "Ειδοποιήσεις", tint = C.Text) }
         }
-        val chips = listOf("" to "Αρχική") + (config?.categories?.map { it.slug to it.name } ?: emptyList())
-        ChipRow(chips, cat, { cat = it }, Modifier.padding(bottom = 10.dp))
-
-        if (cat.isNotEmpty()) { NewsList(cat, openPost, config?.ads); return@Column }
-
-        PullToRefreshBox(isRefreshing = refreshing, onRefresh = { scope.launch { refreshing = true; load(); refreshing = false } }, modifier = Modifier.fillMaxSize()) {
+        PullToRefreshBox(isRefreshing = refreshing, onRefresh = { scope.launch { refreshing = true; load(fresh = true); refreshing = false } }, modifier = Modifier.fillMaxSize()) {
             val h = home
             when {
                 h == null && error -> ErrorBox { key++ }
                 h == null -> Loading()
                 else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(live, key = { "live" + it.id }) { m -> LiveBar(m) { openMatch(m.id) } }
-                    h.featured?.let { f -> item(key = "feat") { FeaturedCard(f) { openPost(f.id) } } }
+                    // Μενού κατηγοριών (πλακίδια με τα εικονίδια του site)
+                    val cats = config?.categories ?: emptyList()
+                    if (cats.isNotEmpty()) item(key = "menu") {
+                        Box(Modifier.padding(horizontal = 0.dp)) {
+                            CategoryMenu(cats.map { Triple(it.slug, it.name, it.icon) } + Triple("__prog", "Πρόγραμμα", "programma"),
+                                { slug, name -> if (slug == "__prog") openMatches() else openCat(slug, name) }, Modifier.padding(bottom = 2.dp).padding(horizontal = 0.dp))
+                        }
+                    }
+                    // Όπως στο site: όσο τρέχει live αγώνας/γεγονός με «Hero», μπαίνει στη θέση του κύριου θέματος
+                    val lh = h.liveHero
+                    val heroMatchId = lh?.takeIf { it.type == "match" }?.id
+                    items(live.filter { it.id != heroMatchId }, key = { "live" + it.id }) { m -> LiveBar(m) { openMatch(m.id) } }
+                    when {
+                        lh != null && lh.type == "match" && lh.match != null -> item(key = "lh") { LiveMatchHero(lh.match, lh.image) { openMatch(lh.id) } }
+                        lh != null && lh.type == "event" -> item(key = "lh") { LiveEventHero(lh.title, lh.image) { openEvent(lh.id) } }
+                        else -> h.featured?.let { f -> item(key = "feat") { FeaturedCard(f) { openPost(f.id) } } }
+                    }
                     if (h.top.isNotEmpty()) {
                         item(key = "toph") { GoldHeader("Τελευταία", Modifier.padding(top = 8.dp), "Ροή ειδήσεων", openFeed) }
                         items(h.top, key = { "t" + it.id }) { p -> PostRow(p) { openPost(p.id) } }
@@ -123,15 +139,36 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
                         }
                     }
                     h.sections.forEachIndexed { si, sec ->
-                        item(key = "sh" + sec.slug) { GoldHeader(sec.name, Modifier.padding(top = 14.dp), "Όλα") { cat = sec.slug } }
+                        item(key = "sh" + sec.slug) { GoldHeader(sec.name, Modifier.padding(top = 14.dp), "Όλα") { openCat(sec.slug, sec.name) } }
                         sec.items.firstOrNull()?.let { first -> item(key = "s" + sec.slug + first.id) { PostCardMedium(first) { openPost(first.id) } } }
                         items(sec.items.drop(1).take(3), key = { "s" + sec.slug + it.id }) { p -> PostRow(p) { openPost(p.id) } }
                         val ads = config?.ads
                         if (ads != null && ads.enabled && si % 2 == 1) item(key = "ad$si") { BannerAd(ads) }
                     }
+                    if (h.socials.isNotEmpty()) item(key = "soc") { Box(Modifier.padding(top = 16.dp)) { SocialSection(h.socials) } }
                 }
             }
         }
+    }
+}
+
+/** Μία κατηγορία: δική της σελίδα, με το εικονίδιό της. */
+@Composable
+fun CategoryScreen(slug: String, name: String, back: () -> Unit, openPost: (Long) -> Unit) {
+    var cfg by remember { mutableStateOf<AppConfig?>(null) }
+    LaunchedEffect(Unit) { runCatching { cfg = Api.config() } }
+    val icon = cfg?.categories?.firstOrNull { it.slug == slug }?.icon ?: "eagle"
+    Column(Modifier.fillMaxSize()) {
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp, end = 16.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Πίσω", tint = C.Text) }
+            Image(painterResource(catIcon(icon)), null, Modifier.size(34.dp))
+            Spacer(Modifier.size(10.dp))
+            Column {
+                Text("ΚΑΤΗΓΟΡΙΑ", style = body(10, FontWeight.ExtraBold, C.Gold))
+                ScreenTitle(name)
+            }
+        }
+        NewsList(slug, openPost, cfg?.ads)
     }
 }
 
@@ -162,11 +199,11 @@ private fun NewsList(cat: String?, openPost: (Long) -> Unit, ads: AdsConfig?) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
-    suspend fun load(reset: Boolean) {
+    suspend fun load(reset: Boolean, fresh: Boolean = false) {
         if (loading) return
         loading = true; error = false
         try {
-            val f = Api.feed(cat, if (reset) 1 else page + 1)
+            val f = Api.feed(cat, if (reset) 1 else page + 1, fresh)
             if (reset) items.clear()
             // Η ροή δείχνει και το κύριο θέμα με τη σειρά του
             val all = (if (reset && f.featured != null) listOf(f.featured) else emptyList()) + f.items
@@ -179,7 +216,7 @@ private fun NewsList(cat: String?, openPost: (Long) -> Unit, ads: AdsConfig?) {
     val nearEnd by remember { derivedStateOf { (listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) >= listState.layoutInfo.totalItemsCount - 4 } }
     LaunchedEffect(nearEnd, page) { if (nearEnd && page in 1 until pages) load(false) }
 
-    PullToRefreshBox(isRefreshing = refreshing, onRefresh = { scope.launch { refreshing = true; load(true); refreshing = false } }, modifier = Modifier.fillMaxSize()) {
+    PullToRefreshBox(isRefreshing = refreshing, onRefresh = { scope.launch { refreshing = true; load(true, fresh = true); refreshing = false } }, modifier = Modifier.fillMaxSize()) {
         when {
             items.isEmpty() && error -> ErrorBox { key++ }
             items.isEmpty() -> Loading()

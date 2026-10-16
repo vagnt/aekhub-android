@@ -3,7 +3,7 @@ package gr.aekhub.app.data
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class Category(val slug: String, val name: String)
+data class Category(val slug: String, val name: String, val icon: String = "eagle")
 
 @Serializable
 data class SportItem(val key: String, val name: String)
@@ -23,7 +23,11 @@ data class AppConfig(
     val categories: List<Category> = emptyList(),
     val sports: List<SportItem> = emptyList(),
     val ads: AdsConfig = AdsConfig(),
+    val socials: List<Social> = emptyList(),
 )
+
+@Serializable
+data class Social(val key: String, val label: String = "", val url: String, val handle: String = "")
 
 @Serializable
 data class PostCard(
@@ -186,6 +190,7 @@ data class MatchDetail(
     val referee: String = "",
     val stamp: Long = 0,
     val bg: String = "",
+    val timeline: Boolean = true,
     val scorersHome: List<String> = emptyList(),
     val scorersAway: List<String> = emptyList(),
     val stream: StreamInfo? = null,
@@ -194,10 +199,10 @@ data class MatchDetail(
 )
 
 @Serializable
-data class StreamInfo(val url: String, val thumb: String = "", val label: String = "", val kicker: String = "", val state: String = "pre")
+data class StreamInfo(val url: String, val embed: String = "", val thumb: String = "", val label: String = "", val kicker: String = "", val state: String = "pre")
 
 @Serializable
-data class Highlight(val title: String = "", val url: String, val thumb: String = "")
+data class Highlight(val title: String = "", val url: String, val embed: String = "", val thumb: String = "")
 
 @Serializable
 data class PitchPlayer(
@@ -215,10 +220,12 @@ data class Pitch(
 )
 
 @Serializable
-data class Section(val slug: String, val name: String, val items: List<PostCard> = emptyList())
+data class Section(val slug: String, val name: String, val icon: String = "eagle", val items: List<PostCard> = emptyList())
 
 @Serializable
 data class HomeData(
+    val liveHero: LiveHero? = null,
+    val socials: List<Social> = emptyList(),
     val featured: PostCard? = null,
     val top: List<PostCard> = emptyList(),
     val matches: List<MatchCard> = emptyList(),
@@ -257,3 +264,16 @@ data class Zone(val from: Int, val to: Int, val label: String = "", val color: S
 
 @Serializable
 data class StandingsList(val items: List<Standing> = emptyList())
+
+@Serializable
+data class LiveHero(val type: String, val id: Long, val title: String = "", val image: String = "", val match: MatchCard? = null)
+
+@Serializable
+data class EventUpdate(
+    val id: Long, val time: String = "", val minute: String = "", val type: String = "info", val typeLabel: String = "",
+    val title: String = "", val text: String = "", val highlight: Boolean = false,
+    val video: String = "", val embed: String = "", val thumb: String = "", val link: String = "",
+)
+
+@Serializable
+data class EventDetail(val id: Long, val title: String = "", val image: String = "", val live: Boolean = false, val statusLabel: String = "", val updates: List<EventUpdate> = emptyList())

@@ -3,7 +3,13 @@ package gr.aekhub.app
 import android.Manifest
 import android.content.Intent
 import android.os.Build
+import android.net.Uri
 import android.os.Bundle
+import coil.Coil
+import coil.ImageLoader
+import okhttp3.OkHttpClient
+import gr.aekhub.app.ui.screens.CategoryScreen
+import gr.aekhub.app.ui.screens.EventScreen
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
@@ -93,6 +99,13 @@ class MainActivity : ComponentActivity() {
         val ink = C.Ink.toArgb()
         enableEdgeToEdge(SystemBarStyle.dark(ink), SystemBarStyle.dark(ink))
         Api.init(applicationContext)
+        // Εικόνες: ό,τι είναι σε http περνάει σε https (το Android μπλοκάρει το http)
+        Coil.setImageLoader(ImageLoader.Builder(applicationContext).okHttpClient {
+            OkHttpClient.Builder().addInterceptor { ch ->
+                val r = ch.request()
+                ch.proceed(if (r.url.scheme == "http") r.newBuilder().url(r.url.newBuilder().scheme("https").build()).build() else r)
+            }.build()
+        }.crossfade(true).build())
         Push.channels(this)
         Ads.start(this)
         val prefs = Prefs(applicationContext)
@@ -175,7 +188,16 @@ private fun AppRoot(deep: MutableStateFlow<Deep?>) {
     ) { pad ->
         Box(Modifier.fillMaxSize().background(C.Ink).padding(pad)) {
             NavHost(nav, startDestination = "home") {
-                composable("home") { HomeScreen(openPost, openMatch, { nav.navigate("search") }, { goTab("me") }, { nav.navigate("feed") }, { goTab("matches") }) }
+                composable("home") {
+                    HomeScreen(openPost, openMatch, { nav.navigate("search") }, { goTab("me") }, { nav.navigate("feed") }, { goTab("matches") },
+                        { slug, name -> nav.navigate("cat/" + Uri.encode(slug) + "?name=" + Uri.encode(name)) }, { id -> nav.navigate("event/$id") })
+                }
+                composable("cat/{slug}?name={name}", arguments = listOf(navArgument("slug") { type = NavType.StringType }, navArgument("name") { type = NavType.StringType; defaultValue = "" })) {
+                    CategoryScreen(it.arguments?.getString("slug") ?: "", it.arguments?.getString("name") ?: "", { nav.popBackStack() }, openPost)
+                }
+                composable("event/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) {
+                    EventScreen(it.arguments?.getLong("id") ?: 0L) { nav.popBackStack() }
+                }
                 composable("feed") { FeedScreen({ nav.popBackStack() }, openPost) }
                 composable("matches") { MatchesScreen(openMatch) }
                 composable("standings") { StandingsScreen() }

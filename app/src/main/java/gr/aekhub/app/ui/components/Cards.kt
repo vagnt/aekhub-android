@@ -101,3 +101,50 @@ fun PostCardMedium(p: PostCard, onClick: () -> Unit) {
         Text(postDate(p.date, withYear = false), style = body(12, color = C.Muted))
     }
 }
+
+/** Live αγώνας στη θέση του κύριου θέματος (όπως στο site όσο τρέχει το ματς). */
+@Composable
+fun LiveMatchHero(m: MatchCard, image: String, onClick: () -> Unit) {
+    Box(Modifier.fillMaxWidth().height(250.dp).clip(RoundedCornerShape(20.dp)).background(C.Panel).border(1.5.dp, C.Live, RoundedCornerShape(20.dp)).clickable(onClick = onClick)) {
+        if (image.isNotBlank()) AsyncImage(image, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        else androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(gr.aekhub.app.R.drawable.match_hero_bg), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to C.Ink.copy(alpha = 0.55f), 1f to C.Ink.copy(alpha = 0.95f))))
+        Column(Modifier.fillMaxSize().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.clip(RoundedCornerShape(6.dp)).background(C.Live).padding(horizontal = 8.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    LiveDot(Color.White)
+                    val mn = liveMinute(m.clock, m.minute)
+                    Text("LIVE" + if (mn.isNotBlank()) " · $mn" else "", style = body(11, FontWeight.ExtraBold, Color.White))
+                }
+                Spacer(Modifier.weight(1f))
+                Text(matchMeta(m), style = body(10, FontWeight.ExtraBold, C.Gold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Crest(m.homeLogo, m.home, 58.dp); Text(m.home.upperGr(), style = disp(17), color = if (m.aek == "home") C.Gold else C.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Text("${m.scoreHome.ifBlank { "0" }} : ${m.scoreAway.ifBlank { "0" }}", style = disp(52, FontWeight.Black), color = C.Text)
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Crest(m.awayLogo, m.away, 58.dp); Text(m.away.upperGr(), style = disp(17), color = if (m.aek == "away") C.Gold else C.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            Text("ΠΑΤΑ ΓΙΑ ΤΟ MATCH CENTER ›", style = body(11, FontWeight.ExtraBold, C.Gold).copy(letterSpacing = 1.sp))
+        }
+    }
+}
+
+/** Live γεγονός (συνέντευξη, παρουσίαση…) στη θέση του κύριου θέματος. */
+@Composable
+fun LiveEventHero(title: String, image: String, onClick: () -> Unit) {
+    Box(Modifier.fillMaxWidth().height(250.dp).clip(RoundedCornerShape(20.dp)).background(C.Panel).border(1.5.dp, C.Live, RoundedCornerShape(20.dp)).clickable(onClick = onClick)) {
+        if (image.isNotBlank()) AsyncImage(image, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        else androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(gr.aekhub.app.R.drawable.match_hero_bg), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.2f to Color.Transparent, 1f to C.Ink)))
+        Column(Modifier.align(Alignment.BottomStart).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.clip(RoundedCornerShape(6.dp)).background(C.Live).padding(horizontal = 8.dp, vertical = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                LiveDot(Color.White); Text("LIVE ΤΩΡΑ", style = body(11, FontWeight.ExtraBold, Color.White))
+            }
+            Text(title.upperGr(), style = disp(28), color = C.Text, maxLines = 3, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}

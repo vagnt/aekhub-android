@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import gr.aekhub.app.ads.Ads
+import gr.aekhub.app.ui.components.SocialRow
 import gr.aekhub.app.push.Push
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -131,6 +132,7 @@ fun MeScreen(openPost: (Long) -> Unit) {
             Text("Ρυθμίσεις απορρήτου διαφημίσεων", Modifier.clickable { (ctx as? Activity)?.let { Ads.showPrivacy(it) } }.padding(vertical = 8.dp),
                 style = body(14, FontWeight.Bold, C.Gold))
         }
+        if ((config?.socials ?: emptyList()).isNotEmpty()) item { SocialRow(config!!.socials) }
         item { Text("AEK Hub " + BuildConfig.VERSION_NAME, Modifier.padding(top = 12.dp), style = body(12, color = C.Muted)) }
     }
 }
