@@ -46,6 +46,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
@@ -112,7 +113,14 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch { prefs.settings.collect { Push.sync(applicationContext, it) } }
         setContent {
             AekTheme {
-                CompositionLocalProvider(LocalPrefs provides prefs) { AppRoot(deep) }
+                CompositionLocalProvider(LocalPrefs provides prefs) {
+                    Box(Modifier.fillMaxSize()) {
+                        AppRoot(deep)
+                        // Animation ανοίγματος με το logo (μία φορά ανά άνοιγμα, όχι σε περιστροφή οθόνης)
+                        var intro by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(savedInstanceState == null) }
+                        if (intro) gr.aekhub.app.ui.components.IntroSplash { intro = false }
+                    }
+                }
             }
         }
     }
