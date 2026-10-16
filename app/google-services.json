@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "561369208925",
+    "project_id": "aekhub-5681a",
+    "storage_bucket": "aekhub-5681a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:561369208925:android:927f28ebb39ecc6e6f55b4",
+        "android_client_info": {
+          "package_name": "gr.aekhub.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBVz6LSyexd8QOQnAZa5Br6FKbZT2W5-VQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
