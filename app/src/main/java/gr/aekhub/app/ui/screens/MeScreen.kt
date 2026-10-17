@@ -59,6 +59,10 @@ import gr.aekhub.app.ui.components.SectionLabel
 import gr.aekhub.app.ui.theme.C
 import gr.aekhub.app.ui.theme.body
 import kotlinx.coroutines.launch
+import gr.aekhub.app.data.Kinds
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.Icons
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -97,47 +101,66 @@ fun MeScreen(openPost: (Long) -> Unit) {
                 ) { Text("Άνοιξέ τες", style = body(14, FontWeight.ExtraBold, C.Ink)) }
             }
         }
+        // Γενικός διακόπτης
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionLabel("ΤΜΗΜΑΤΑ ΠΟΥ ΑΚΟΛΟΥΘΩ")
-                Text("Ειδοποιήσεις αγώνων έρχονται μόνο για τα τμήματα που τσεκάρεις.", style = body(13, color = C.Muted))
-                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(18.dp))) {
-                    val list = config?.sports ?: emptyList()
-                    list.forEachIndexed { idx, sp ->
-                        val on = sp.key in s.sports
-                        Row(
-                            Modifier.fillMaxWidth().clickable { scope.launch { prefs.toggleSport(sp.key) } }.padding(horizontal = 8.dp, vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            androidx.compose.material3.Checkbox(
-                                checked = on, onCheckedChange = { scope.launch { prefs.toggleSport(sp.key) } },
-                                colors = androidx.compose.material3.CheckboxDefaults.colors(checkedColor = C.Gold, checkmarkColor = C.Ink, uncheckedColor = C.Line2),
-                            )
-                            Text(sportEmoji(sp.key) + "  " + sp.name, style = body(15, if (on) FontWeight.ExtraBold else FontWeight.Bold, if (on) C.Text else C.Text2))
-                        }
-                        if (idx < list.lastIndex) HorizontalDivider(Modifier.padding(start = 56.dp, end = 16.dp), thickness = 1.dp, color = C.Line)
-                    }
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(if (s.nAll) C.Panel else C.Panel2)
+                    .border(1.5.dp, if (s.nAll) C.Gold else C.Line, RoundedCornerShape(20.dp))
+                    .clickable { scope.launch { prefs.setFlag("all", !s.nAll) } }.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Box(Modifier.size(44.dp).clip(CircleShape).background(if (s.nAll) C.Gold else C.Panel3), contentAlignment = Alignment.Center) {
+                    androidx.compose.material3.Icon(if (s.nAll) Icons.Filled.Notifications else Icons.Filled.NotificationsOff, null, tint = if (s.nAll) C.Ink else C.Muted)
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Ειδοποιήσεις AEK Hub", style = body(16, FontWeight.ExtraBold))
+                    Text(if (s.nAll) "Ενεργές, με τις επιλογές σου παρακάτω" else "Κλειστές", style = body(12, color = if (s.nAll) C.Gold else C.Muted))
+                }
+                Switch(s.nAll, { scope.launch { prefs.setFlag("all", it) } }, colors = sw())
+            }
+        }
+        if (!s.nAll) item {
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(C.Panel2).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("Δεν θα λαμβάνεις καμία ειδοποίηση", style = body(15, FontWeight.ExtraBold))
+                Text("Ούτε γκολ, ούτε έκτακτα, ούτε υπενθυμίσεις αγώνων. Οι επιλογές σου ανά άθλημα μένουν αποθηκευμένες: άνοιξε τον διακόπτη και ξαναρχίζουν όπως ήταν.",
+                    style = body(13, color = C.Text2).copy(lineHeight = 19.sp))
+            }
+        }
+        if (s.nAll) {
+            item { SectionLabel("ΑΝΑ ΑΘΛΗΜΑ") }
+            val list = config?.sports?.map { it.key to it.name } ?: Kinds.SPORTS.map { it to sportName(it) }
+            items(list, key = { "sp" + it.first }) { (key, name) ->
+                SportCard(key, name, s, { scope.launch { prefs.toggleSport(key) } }) { kind, on -> scope.launch { prefs.setKind(key, kind, on) } }
+            }
+            item {
+                Group("ΕΙΔΗΣΕΙΣ") {
+                    Toggle(Icons.Filled.Bolt, "Έκτακτα", "Μεταγραφές, ανακοινώσεις και τα σημαντικά θέματα της ημέρας, με ετικέτα όπως «ΕΠΙΣΗΜΟ».",
+                        "ΕΠΙΣΗΜΟ · Ανακοίνωση της ΠΑΕ ΑΕΚ", s.nBreaking, last = true) { scope.launch { prefs.setFlag("breaking", it) } }
                 }
             }
-        }
-        item {
-            Group("ΣΤΟΥΣ ΑΓΩΝΕΣ") {
-                Toggle("⚽", "Γκολ", "Κάθε γκολ της ΑΕΚ και του αντιπάλου, τη στιγμή που μπαίνει, με το νέο σκορ. Στο μπάσκετ και το βόλεϊ δεν χτυπάει σε κάθε πόντο.",
-                    "⚽ 🟡 ΓΚΟΛ! ΑΕΚ [1]-0 Ολυμπιακός — 23′", s.nGoals) { scope.launch { prefs.setFlag("goals", it) } }
-                Toggle("🏁", "Έναρξη, ημίχρονο & τελικό", "Πότε ξεκινά ο αγώνας, το ημίχρονο ή τα δεκάλεπτα/σετ και το τελικό αποτέλεσμα.",
-                    "⚽ 🏁 Τελικό · ΑΕΚ 2-0 Ολυμπιακός", s.nStartEnd) { scope.launch { prefs.setFlag("startEnd", it) } }
-                Toggle("📋", "Ενδεκάδα", "Η αρχική σύνθεση της ΑΕΚ μόλις ανακοινωθεί, περίπου μία ώρα πριν τη σέντρα.",
-                    "📋 Η ενδεκάδα της ΑΕΚ · ΑΕΚ - Ολυμπιακός", s.nLineup) { scope.launch { prefs.setFlag("lineup", it) } }
-                Toggle("🟨", "Κάρτες & αλλαγές", "Κίτρινες, κόκκινες, αλλαγές και αποβολές. Για όσους θέλουν να ξέρουν τα πάντα.",
-                    "🟨 Κίτρινη 37′ · ΑΕΚ", s.nCards, last = true) { scope.launch { prefs.setFlag("cards", it) } }
-            }
-        }
-        item {
-            Group("ΕΙΔΗΣΕΙΣ") {
-                Toggle("⚡", "Έκτακτα", "Μεταγραφές, ανακοινώσεις και τα σημαντικά θέματα της ημέρας. Μόνο όσα αξίζει να μάθεις αμέσως.",
-                    "⚡ Ανακοίνωση: νέος προπονητής στην ΑΕΚ", s.nBreaking) { scope.launch { prefs.setFlag("breaking", it) } }
-                Toggle("🌙", "Ήσυχες ώρες", "Από 01:00 έως 08:00 το κινητό δεν χτυπάει. Εξαίρεση: τα γκολ.", null, s.nQuiet) { scope.launch { prefs.setFlag("quiet", it) } }
-                Toggle("🧪", "Δοκιμαστικές ειδοποιήσεις", "Για συντάκτες: λαμβάνεις και τις ειδοποιήσεις των δοκιμαστικών αγώνων. Το κοινό δεν τις βλέπει ποτέ.", null, s.nTest, last = true) { scope.launch { prefs.setFlag("test", it) } }
+            item {
+                Group("ΓΕΝΙΚΑ") {
+                    Toggle(Icons.Filled.VisibilityOff, "Χωρίς spoilers", "Για όσους βλέπουν τον αγώνα αργότερα: οι ειδοποιήσεις δεν δείχνουν σκορ.", "ΑΕΚ – Ολυμπιακός · Νέα εξέλιξη", s.nSpoiler) { scope.launch { prefs.setFlag("spoiler", it) } }
+                    Toggle(Icons.Filled.Bedtime, "Ήσυχες ώρες", "Από 01:00 έως 08:00 το κινητό δεν χτυπάει. Εξαίρεση: τα γκολ της ΑΕΚ.", null, s.nQuiet) { scope.launch { prefs.setFlag("quiet", it) } }
+                    Row(
+                        Modifier.fillMaxWidth().clickable {
+                            runCatching { ctx.startActivity(Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName).putExtra(Settings.EXTRA_CHANNEL_ID, gr.aekhub.app.push.Notifs.CH_GOAL)) }
+                        }.padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        IconBox(Icons.Filled.MusicNote, true)
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text("Ήχος γκολ της ΑΕΚ", style = body(15, FontWeight.ExtraBold))
+                            Text("Ο ήχος του AEK Hub. Πάτα για να τον αλλάξεις ή να τον κλείσεις.", style = body(12, color = C.Muted).copy(lineHeight = 17.sp))
+                        }
+                        Text("Αλλαγή", style = body(13, FontWeight.ExtraBold, C.Gold))
+                    }
+                    HorizontalDivider(Modifier.padding(start = 68.dp, end = 16.dp), thickness = 1.dp, color = C.Line)
+                    Toggle(Icons.Filled.Science, "Δοκιμαστικές ειδοποιήσεις", "Για συντάκτες: και οι ειδοποιήσεις των δοκιμαστικών αγώνων. Το κοινό δεν τις βλέπει ποτέ.", null, s.nTest, last = true) { scope.launch { prefs.setFlag("test", it) } }
+                }
             }
         }
         item { SectionLabel("ΑΠΟΘΗΚΕΥΜΕΝΑ ΑΡΘΡΑ") }
@@ -195,11 +218,18 @@ private fun Group(title: String, content: @Composable () -> Unit) =
     }
 
 @Composable
-private fun Toggle(icon: String, title: String, sub: String, example: String?, on: Boolean, last: Boolean = false, set: (Boolean) -> Unit) {
+private fun sw() = SwitchDefaults.colors(checkedThumbColor = C.Ink, checkedTrackColor = C.Gold, uncheckedThumbColor = C.Muted, uncheckedTrackColor = C.Line2, uncheckedBorderColor = C.Line2)
+
+@Composable
+private fun IconBox(icon: androidx.compose.ui.graphics.vector.ImageVector, on: Boolean) =
+    Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(if (on) C.Gold.copy(alpha = 0.16f) else C.Panel2), contentAlignment = Alignment.Center) {
+        androidx.compose.material3.Icon(icon, null, tint = if (on) C.Gold else C.Muted, modifier = Modifier.size(22.dp))
+    }
+
+@Composable
+private fun Toggle(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, sub: String, example: String?, on: Boolean, last: Boolean = false, set: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth().clickable { set(!on) }.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(if (on) C.Gold.copy(alpha = 0.16f) else C.Panel2), contentAlignment = Alignment.Center) {
-            Text(icon, style = body(19))
-        }
+        IconBox(icon, on)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(title, style = body(15, FontWeight.ExtraBold, if (on) C.Text else C.Text2))
             Text(sub, style = body(12, color = C.Muted).copy(lineHeight = 17.sp))
@@ -208,12 +238,65 @@ private fun Toggle(icon: String, title: String, sub: String, example: String?, o
                 style = body(12, FontWeight.Bold, if (on) C.Text else C.Muted), maxLines = 2,
             )
         }
-        Switch(on, set, colors = SwitchDefaults.colors(checkedThumbColor = C.Ink, checkedTrackColor = C.Gold, uncheckedThumbColor = C.Muted, uncheckedTrackColor = C.Line2, uncheckedBorderColor = C.Line2))
+        Switch(on, set, colors = sw())
     }
     if (!last) HorizontalDivider(Modifier.padding(start = 68.dp, end = 16.dp), thickness = 1.dp, color = C.Line)
 }
 
-private fun sportEmoji(k: String) = when (k) {
-    "football", "women_football" -> "⚽"; "basketball" -> "🏀"; "volleyball" -> "🏐"; "handball" -> "🤾"
-    "futsal" -> "🥅"; "waterpolo" -> "🤽"; else -> "🏅"
+private fun sportName(k: String) = when (k) {
+    "football" -> "Ποδόσφαιρο"; "basketball" -> "Μπάσκετ"; "volleyball" -> "Βόλεϊ"; "handball" -> "Χάντμπολ"
+    "women_football" -> "Γυναικείο ποδόσφαιρο"; "futsal" -> "Futsal"; "waterpolo" -> "Πόλο"; else -> k
+}
+private fun sportIcon(k: String) = when (k) {
+    "basketball" -> Icons.Filled.SportsBasketball; "volleyball" -> Icons.Filled.SportsVolleyball; "handball" -> Icons.Filled.SportsHandball
+    "waterpolo" -> Icons.Filled.Pool; else -> Icons.Filled.SportsSoccer
+}
+
+/** Οι επιλογές κάθε αθλήματος, με τη γλώσσα του (γκολ/σετ, ενδεκάδα/πεντάδα, κάρτες/αποβολές). */
+private data class KindRow(val kind: String, val title: String, val sub: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
+private fun kindRows(sp: String): List<KindRow> = buildList {
+    add(KindRow(Kinds.LIVE, "Ζωντανή ειδοποίηση", "Σκορ και λεπτό σε μία ειδοποίηση που ενημερώνεται αθόρυβα σε όλο τον αγώνα.", Icons.Filled.Sensors))
+    when (sp) {
+        "volleyball" -> { add(KindRow(Kinds.GOALS, "Σετ της ΑΕΚ", "Με ήχο, μόλις κερδίσει σετ η ΑΕΚ.", Icons.Filled.EmojiEvents)); add(KindRow(Kinds.OPP, "Σετ του αντιπάλου", "Αθόρυβα.", Icons.Filled.Remove)) }
+        in Kinds.NO_GOALS -> {}
+        else -> { add(KindRow(Kinds.GOALS, "Γκολ της ΑΕΚ", "Με τον ήχο γκολ του AEK Hub, τη στιγμή που μπαίνει.", Icons.Filled.EmojiEvents)); add(KindRow(Kinds.OPP, "Γκολ του αντιπάλου", "Αθόρυβα.", Icons.Filled.Remove)) }
+    }
+    add(KindRow(Kinds.STARTEND, when (sp) { "basketball" -> "Τζάμπολ, δεκάλεπτα, τελικό"; "volleyball" -> "Έναρξη και τελικό"; "waterpolo" -> "Έναρξη, περίοδοι, τελικό"; else -> "Σέντρα, ημίχρονο, τελικό" },
+        "Το τελικό έρχεται με σκόρερ και κουμπί για στιγμιότυπα και βαθμολογία.", Icons.Filled.Flag))
+    add(KindRow(Kinds.LINEUP, when (sp) { "basketball" -> "Αρχική πεντάδα"; "volleyball" -> "Αρχική εξάδα"; "football", "women_football" -> "Ενδεκάδα"; else -> "Αρχική σύνθεση" },
+        "Μόλις ανακοινωθεί.", Icons.Filled.Groups))
+    add(KindRow(Kinds.REMINDER, "Υπενθύμιση 30′ πριν", "Με την ώρα, το γήπεδο και πού μεταδίδεται.", Icons.Filled.Alarm))
+    add(KindRow(Kinds.CARDS, when (sp) { "basketball" -> "Τεχνικές ποινές και αποβολές"; "handball", "waterpolo" -> "Αποβολές"; "volleyball" -> "Αλλαγές"; else -> "Κάρτες και αλλαγές" },
+        "Για όσους θέλουν να ξέρουν τα πάντα.", Icons.Filled.Style))
+}
+
+@Composable
+private fun SportCard(key: String, name: String, s: AppSettings, toggle: () -> Unit, set: (String, Boolean) -> Unit) {
+    val follow = key in s.sports
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(C.Panel).border(1.dp, if (follow) C.Gold.copy(alpha = 0.45f) else C.Line, RoundedCornerShape(18.dp))) {
+        Row(Modifier.fillMaxWidth().clickable(onClick = toggle).padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            IconBox(sportIcon(key), follow)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(name, style = body(16, FontWeight.ExtraBold, if (follow) C.Text else C.Text2))
+                Text(if (follow) "Ακολουθείς" else "Καμία ειδοποίηση από αυτό το τμήμα", style = body(12, color = if (follow) C.Gold else C.Muted))
+            }
+            Switch(follow, { toggle() }, colors = sw())
+        }
+        if (follow) {
+            HorizontalDivider(thickness = 1.dp, color = C.Line)
+            val rows = kindRows(key)
+            rows.forEachIndexed { i, r ->
+                val on = "$key:${r.kind}" in s.kinds
+                Row(Modifier.fillMaxWidth().clickable { set(r.kind, !on) }.padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    androidx.compose.material3.Icon(r.icon, null, tint = if (on) C.Gold else C.Muted, modifier = Modifier.size(20.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(r.title, style = body(14, FontWeight.Bold, if (on) C.Text else C.Text2))
+                        Text(r.sub, style = body(11, color = C.Muted).copy(lineHeight = 15.sp))
+                    }
+                    Switch(on, { set(r.kind, it) }, colors = sw())
+                }
+                if (i < rows.lastIndex) HorizontalDivider(Modifier.padding(start = 48.dp, end = 12.dp), thickness = 1.dp, color = C.Line)
+            }
+        }
+    }
 }

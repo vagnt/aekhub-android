@@ -79,12 +79,13 @@ import gr.aekhub.app.ui.theme.body
 val LocalPrefs = staticCompositionLocalOf<Prefs> { error("Prefs") }
 
 /** Άνοιγμα από ειδοποίηση: άρθρο ή αγώνας. */
-data class Deep(val post: Long = 0, val match: Long = 0, val at: Long = System.nanoTime())
+data class Deep(val post: Long = 0, val match: Long = 0, val tab: String = "", val at: Long = System.nanoTime())
 
 class MainActivity : ComponentActivity() {
     companion object {
         const val EXTRA_POST = "aek_post"
         const val EXTRA_MATCH = "aek_match"
+        const val EXTRA_TAB = "aek_tab"
     }
 
     private val deep = MutableStateFlow<Deep?>(null)
@@ -92,7 +93,8 @@ class MainActivity : ComponentActivity() {
     private fun readIntent(i: Intent?) {
         val p = i?.getLongExtra(EXTRA_POST, 0L) ?: 0L
         val m = i?.getLongExtra(EXTRA_MATCH, 0L) ?: 0L
-        if (p > 0 || m > 0) deep.value = Deep(p, m)
+        val t = i?.getStringExtra(EXTRA_TAB).orEmpty()
+        if (p > 0 || m > 0 || t.isNotEmpty()) deep.value = Deep(p, m, t)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -157,6 +159,7 @@ private fun AppRoot(deep: MutableStateFlow<Deep?>) {
     LaunchedEffect(link) {
         val d = link ?: return@LaunchedEffect
         if (d.post > 0) nav.navigate("post/${d.post}") else if (d.match > 0) nav.navigate("match/${d.match}")
+        else if (d.tab.isNotEmpty()) nav.navigate(d.tab) { launchSingleTop = true }
         deep.value = null
     }
     // Android 13+: μία φορά ζητάμε άδεια για ειδοποιήσεις

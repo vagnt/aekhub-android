@@ -9,7 +9,9 @@ import android.os.Build
 import androidx.core.content.ContextCompat
 import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
+import gr.aekhub.app.data.Kinds
 import gr.aekhub.app.data.Settings
+import gr.aekhub.app.data.wants
 
 /**
  * Ειδοποιήσεις: το app γράφεται σε «θέματα» ανάλογα με τις επιλογές του χρήστη.
@@ -24,27 +26,21 @@ object Push {
     fun allowed(ctx: Context) = Build.VERSION.SDK_INT < 33 ||
         ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 
-    fun channels(ctx: Context) {
-        if (Build.VERSION.SDK_INT < 26) return
-        val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
-        nm.createNotificationChannel(NotificationChannel("matches", "Αγώνες", NotificationManager.IMPORTANCE_HIGH).apply {
-            description = "Γκολ, έναρξη και λήξη, ενδεκάδα, κάρτες"
-        })
-        nm.createNotificationChannel(NotificationChannel("news", "Ειδήσεις", NotificationManager.IMPORTANCE_DEFAULT).apply {
-            description = "Έκτακτα και σημαντικά άρθρα"
-        })
-    }
+    fun channels(ctx: Context) = Notifs.channels(ctx)
 
     fun topicsFor(s: Settings): Set<String> = buildSet {
         add("app_sync") // αθόρυβη άμεση ανανέωση περιεχομένου (χωρίς ειδοποίηση)
+        if (!s.nAll) return@buildSet // γενικός διακόπτης κλειστός: καμία ειδοποίηση
         s.sports.forEach { sp ->
-            if (s.nGoals) add("m_${sp}_goals")
-            if (s.nStartEnd) add("m_${sp}_startend")
-            if (s.nLineup) add("m_${sp}_lineup")
-            if (s.nCards) add("m_${sp}_cards")
+            if (s.wants(sp, Kinds.LIVE)) add("m_${sp}_live")
+            if (s.wants(sp, Kinds.GOALS) || s.wants(sp, Kinds.OPP)) add("m_${sp}_goals") // γκολ αντιπάλου: φιλτράρεται στο κινητό
+            if (s.wants(sp, Kinds.STARTEND)) add("m_${sp}_startend")
+            if (s.wants(sp, Kinds.LINEUP)) add("m_${sp}_lineup")
+            if (s.wants(sp, Kinds.CARDS)) add("m_${sp}_cards")
+            if (s.wants(sp, Kinds.REMINDER)) add("m_${sp}_reminder")
         }
         if (s.nBreaking) add("news_breaking")
-        if (s.nTest) add("push_test") // δοκιμαστικοί αγώνες (🧪) — μόνο για όσους το ανοίξουν
+        if (s.nTest) add("push_test") // δοκιμαστικοί αγώνες: μόνο για όσους το ανοίξουν
         s.matchAlerts.forEach { add("match_$it") }
     }
 

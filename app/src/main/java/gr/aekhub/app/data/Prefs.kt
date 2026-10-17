@@ -24,16 +24,45 @@ data class Settings(
     val nBreaking: Boolean = true,
     val nQuiet: Boolean = false,
     val nTest: Boolean = false,
+    /** Γενικός διακόπτης: κλειστός = καμία ειδοποίηση από το AEK Hub. */
+    val nAll: Boolean = true,
+    /** «Χωρίς spoilers»: ειδοποιήσεις αγώνων χωρίς σκορ. */
+    val nSpoiler: Boolean = false,
+    /** Τι θέλει ο χρήστης σε κάθε άθλημα: "football:goals", "basketball:live" κ.λπ. */
+    val kinds: Set<String> = defaultKinds(),
     val matchAlerts: Set<String> = emptySet(),
     val mutedMatches: Set<String> = emptySet(),
     val saved: List<PostCard> = emptyList(),
 )
 
+/** Τα είδη ειδοποίησης ανά άθλημα (ίδια ονόματα με τα θέματα m_<άθλημα>_<είδος> του server, εκτός από το "opp"). */
+object Kinds {
+    const val LIVE = "live"; const val GOALS = "goals"; const val OPP = "opp"; const val STARTEND = "startend"
+    const val LINEUP = "lineup"; const val CARDS = "cards"; const val REMINDER = "reminder"
+    val ALL = listOf(LIVE, GOALS, OPP, STARTEND, LINEUP, REMINDER, CARDS)
+    val SPORTS = listOf("football", "basketball", "volleyball", "handball", "women_football", "futsal", "waterpolo")
+    /** Αθλήματα χωρίς ειδοποίηση σε κάθε σκορ (μόνο φάσεις και τελικό). */
+    val NO_GOALS = setOf("basketball", "handball")
+}
+fun defaultKinds(goals: Boolean = true, startEnd: Boolean = true, lineup: Boolean = true, cards: Boolean = false): Set<String> = buildSet {
+    Kinds.SPORTS.forEach { sp ->
+        add("$sp:${Kinds.LIVE}"); add("$sp:${Kinds.REMINDER}")
+        if (goals) { add("$sp:${Kinds.GOALS}"); add("$sp:${Kinds.OPP}") }
+        if (startEnd) add("$sp:${Kinds.STARTEND}")
+        if (lineup) add("$sp:${Kinds.LINEUP}")
+        if (cards) add("$sp:${Kinds.CARDS}")
+    }
+}
+
+/** Θέλει ο χρήστης αυτό το είδος σε αυτό το άθλημα; (γενικός διακόπτης + ακολουθεί το άθλημα + το είδος) */
+fun Settings.wants(sport: String, kind: String) = nAll && sport in sports && "$sport:$kind" in kinds
+
 /** Θα έρθουν ειδοποιήσεις για αυτόν τον αγώνα; (ακολουθείς το άθλημα ή το πάτησες, και δεν τον έχεις σιγάσει) */
 fun Settings.alertOn(id: Long, sport: String, aek: Boolean): Boolean {
+    if (!nAll) return false
     val k = id.toString()
     if (k in mutedMatches) return false
-    return k in matchAlerts || (aek && sport in sports && (nGoals || nStartEnd || nLineup || nCards))
+    return k in matchAlerts || (aek && Kinds.ALL.any { wants(sport, it) })
 }
 
 class Prefs(private val ctx: Context) {
@@ -47,6 +76,9 @@ class Prefs(private val ctx: Context) {
         val breaking = booleanPreferencesKey("n_breaking")
         val quiet = booleanPreferencesKey("n_quiet")
         val test = booleanPreferencesKey("n_test")
+        val all = booleanPreferencesKey("n_all")
+        val spoiler = booleanPreferencesKey("n_spoiler")
+        val kinds = stringSetPreferencesKey("sport_kinds")
         val matchAlerts = stringSetPreferencesKey("match_alerts")
         val muted = stringSetPreferencesKey("muted_matches")
         val saved = stringPreferencesKey("saved")
@@ -66,6 +98,10 @@ class Prefs(private val ctx: Context) {
             nBreaking = p[K.breaking] ?: d.nBreaking,
             nQuiet = p[K.quiet] ?: d.nQuiet,
             nTest = p[K.test] ?: d.nTest,
+            nAll = p[K.all] ?: d.nAll,
+            nSpoiler = p[K.spoiler] ?: d.nSpoiler,
+            // Πρώτη φορά με τις νέες ρυθμίσεις: από τις παλιές επιλογές του χρήστη
+            kinds = p[K.kinds] ?: defaultKinds(p[K.goals] ?: true, p[K.startEnd] ?: true, p[K.lineup] ?: true, p[K.cards] ?: false),
             matchAlerts = p[K.matchAlerts] ?: emptySet(),
             mutedMatches = p[K.muted] ?: emptySet(),
             saved = p[K.saved]?.let { runCatching { Api.json.decodeFromString(savedSer, it) }.getOrNull() } ?: emptyList(),
@@ -93,9 +129,27 @@ class Prefs(private val ctx: Context) {
     suspend fun setFlag(name: String, v: Boolean) = ctx.store.edit { p ->
         val key: Preferences.Key<Boolean> = when (name) {
             "goals" -> K.goals; "startEnd" -> K.startEnd; "lineup" -> K.lineup
-            "cards" -> K.cards; "breaking" -> K.breaking; "test" -> K.test; else -> K.quiet
+            "cards" -> K.cards; "breaking" -> K.breaking; "test" -> K.test
+            "all" -> K.all; "spoiler" -> K.spoiler; else -> K.quiet
         }
         p[key] = v
+    }
+
+    /** Ένα είδος ειδοποίησης σε ένα άθλημα. */
+    suspend fun setKind(sport: String, kind: String, on: Boolean) = ctx.store.edit { p ->
+        val cur = p[K.kinds] ?: defaultKinds(p[K.goals] ?: true, p[K.startEnd] ?: true, p[K.lineup] ?: true, p[K.cards] ?: false)
+        p[K.kinds] = if (on) cur + "$sport:$kind" else cur - "$sport:$kind"
+    }
+
+    /** Σίγαση αγώνα (από το κουμπί της ειδοποίησης). */
+    suspend fun mute(id: Long) = ctx.store.edit { p ->
+        val k = id.toString()
+        p[K.muted] = (p[K.muted] ?: emptySet()) + k; p[K.matchAlerts] = (p[K.matchAlerts] ?: emptySet()) - k
+    }
+
+    suspend fun saveIfMissing(card: PostCard) = ctx.store.edit { p ->
+        val cur = p[K.saved]?.let { runCatching { Api.json.decodeFromString(savedSer, it) }.getOrNull() } ?: emptyList()
+        if (cur.none { it.id == card.id }) p[K.saved] = Api.json.encodeToString(savedSer, (listOf(card) + cur).take(200))
     }
 
     suspend fun toggleSaved(card: PostCard) = ctx.store.edit { p ->

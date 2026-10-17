@@ -144,7 +144,7 @@ fun MatchScreen(id: Long, back: () -> Unit) {
     ) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item(key = "hero") {
-            Hero(d, alert, back) { scope.launch { prefs.toggleMatchAlert(d.id, alert) } }
+            Hero(d, alert, back) { if (!settings.nAll) android.widget.Toast.makeText(ctx, "Οι ειδοποιήσεις είναι κλειστές. Άνοιξέ τες από το «Εγώ».", android.widget.Toast.LENGTH_LONG).show() else scope.launch { prefs.toggleMatchAlert(d.id, alert) } }
         }
         item(key = "presented") { gr.aekhub.app.ads.PresentedBy("match", Modifier.padding(horizontal = 16.dp)) }
         d.stream?.let { s -> item(key = "stream") { StreamCard(s.thumb, s.label, s.kicker, s.state, if (playStream && s.embed.isNotBlank()) s.embed else null) { if (s.embed.isNotBlank()) playStream = true else open(s.url) } } }

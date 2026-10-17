@@ -91,6 +91,7 @@ fun MatchesScreen(openMatch: (Long) -> Unit) {
     val todayIdx = BACK_DAYS.toInt()
     val pager = rememberPagerState(initialPage = todayIdx) { days.size }
     val strip = rememberLazyListState(initialFirstVisibleItemIndex = (todayIdx - 3).coerceAtLeast(0))
+    val ctxM = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) { runCatching { config = Api.config() } }
@@ -190,7 +191,7 @@ fun MatchesScreen(openMatch: (Long) -> Unit) {
                     }
                 } else LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(ms, key = { it.id }) { m ->
-                        MatchCardView(m, settings.alertOn(m.id, m.sport, m.aek.isNotEmpty()).also { }, { val on = settings.alertOn(m.id, m.sport, m.aek.isNotEmpty()); scope.launch { prefs.toggleMatchAlert(m.id, on) } }) { openMatch(m.id) }
+                        MatchCardView(m, settings.alertOn(m.id, m.sport, m.aek.isNotEmpty()).also { }, { if (!settings.nAll) android.widget.Toast.makeText(ctxM, "Οι ειδοποιήσεις είναι κλειστές. Άνοιξέ τες από το «Εγώ».", android.widget.Toast.LENGTH_LONG).show() else { val on = settings.alertOn(m.id, m.sport, m.aek.isNotEmpty()); scope.launch { prefs.toggleMatchAlert(m.id, on) } } }) { openMatch(m.id) }
                     }
                     val ads = config?.ads
                     if (ads != null && ads.matches) item(key = "ad") { BannerAd(ads, place = "matches") }
