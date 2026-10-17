@@ -7,6 +7,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -51,9 +52,14 @@ object Api {
     @Suppress("UNUSED_PARAMETER")
     private suspend fun get(path: String, fresh: Boolean = false): String = withContext(Dispatchers.IO) {
         val url = BASE + path + (if ('?' in path) "&" else "?") + "_=" + System.currentTimeMillis()
-        val req = Request.Builder().url(url).cacheControl(okhttp3.CacheControl.FORCE_NETWORK).header("Cache-Control", "no-cache").build()
+        // POST: καμία cache (WordPress.com edge / Batcache / CDN) δεν αποθηκεύει POST → πάντα τα τρέχοντα.
+        // Αν ο server είναι παλιός (δεν δέχεται POST), ξαναδοκιμάζει με GET.
+        fun build(post: Boolean) = Request.Builder().url(url).cacheControl(okhttp3.CacheControl.FORCE_NETWORK).header("Cache-Control", "no-cache")
+            .apply { if (post) post(ByteArray(0).toRequestBody(null)) }.build()
         try {
-            http.newCall(req).execute().use { r ->
+            var resp = http.newCall(build(usePost)).execute()
+            if (usePost && (resp.code == 404 || resp.code == 405)) { resp.close(); usePost = false; resp = http.newCall(build(false)).execute() }
+            resp.use { r ->
                 if (!r.isSuccessful) throw IOException("HTTP " + r.code)
                 val b = r.body?.string() ?: throw IOException("Κενή απάντηση")
                 if (!b.trimStart().startsWith("{") && !b.trimStart().startsWith("[")) throw IOException("Όχι JSON: " + b.take(80))
@@ -67,6 +73,7 @@ object Api {
     }
 
     /** Διάγνωση (οθόνη «Εγώ»): πότε μιλήσαμε τελευταία φορά με τον server και τι σφάλμα υπήρξε. */
+    @Volatile private var usePost = true
     @Volatile var lastOk = 0L
     @Volatile var lastErr = ""
     @Volatile var lastErrAt = 0L
