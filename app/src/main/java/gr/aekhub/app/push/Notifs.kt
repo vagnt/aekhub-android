@@ -117,17 +117,13 @@ object Notifs {
         val liveNow = status !in setOf("", "upcoming", "finished", "postponed")
         when (kind) {
             "live" -> live(ctx, d, sp, alert = false)
-            "goals" -> when {
-                ev == "goal" && aekScored && d["aek"]?.isNotEmpty() == true -> goal(ctx, d, sp, loud = !sp)
-                liveOn && liveNow && ev != "pen" -> {} // γκολ αντιπάλου / ακύρωση / σετ: μέσα στη ζωντανή, αθόρυβα
-                else -> goal(ctx, d, sp, loud = false)
-            }
+            // Γκολ ΑΕΚ: δικός του ήχος. Γκολ αντιπάλου, ακύρωση, σετ, πέναλτι: κανονική ειδοποίηση (και ενημερώνεται και η ζωντανή)
+            "goals" -> goal(ctx, d, sp, loud = ev == "goal" && aekScored && d["aek"]?.isNotEmpty() == true && !sp)
             "startend" -> when {
                 ev == "ft" -> final(ctx, d, sp)
                 ev == "postponed" -> event(ctx, d, sp, CH_MATCH, SLOT_LIVE)
                 status == "live" || status == "q1" -> event(ctx, d, sp, CH_MATCH, SLOT_LIVE) // σέντρα: μετά γίνεται η ζωντανή
-                liveOn && liveNow -> {} // ημίχρονο, δεκάλεπτα: μέσα στη ζωντανή
-                else -> event(ctx, d, sp, CH_QUIET, SLOT_EVENT)
+                else -> event(ctx, d, sp, CH_MATCH, SLOT_EVENT) // ημίχρονο, δεκάλεπτα: κανονική ειδοποίηση
             }
             "cards" -> event(ctx, d, sp, CH_QUIET, SLOT_EVENT)
             "lineup" -> lineup(ctx, d)
@@ -148,12 +144,28 @@ object Notifs {
             runBlocking {
                 withTimeoutOrNull(6_000) {
                     val r = il.execute(ImageRequest.Builder(ctx).data(url).size(size).allowHardware(false).build())
-                    (r as? SuccessResult)?.drawable?.toBitmap(size, size, Bitmap.Config.ARGB_8888)
+                    (r as? SuccessResult)?.drawable?.let { dr ->
+                        if (size > 300) { // φωτογραφία είδησης: με τις αναλογίες της
+                            val w = dr.intrinsicWidth.coerceAtLeast(1); val h = dr.intrinsicHeight.coerceAtLeast(1)
+                            dr.toBitmap(size, (size.toLong() * h / w).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+                        } else fitCrest(dr, size, 0.78f)
+                    }
                 }
             }
         }.getOrNull()
         if (bmp != null) crestCache[url] = bmp
         return bmp
+    }
+
+    /** Το σήμα ολόκληρο, με τις αναλογίες του, στο κέντρο ενός τετραγώνου με διάφανο περιθώριο (για να μην κόβεται στο στρογγύλεμα). */
+    private fun fitCrest(dr: android.graphics.drawable.Drawable, size: Int, fill: Float): Bitmap {
+        val w = dr.intrinsicWidth.takeIf { it > 0 } ?: size; val h = dr.intrinsicHeight.takeIf { it > 0 } ?: size
+        val out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val box = size * fill; val sc = minOf(box / w, box / h)
+        val dw = (w * sc).toInt(); val dh = (h * sc).toInt()
+        val l = (size - dw) / 2; val t = (size - dh) / 2
+        dr.setBounds(l, t, l + dw, t + dh); dr.draw(android.graphics.Canvas(out))
+        return out
     }
 
     private fun tag(id: Long) = "m$id"
@@ -268,11 +280,11 @@ object Notifs {
         val logo = if (side == "away") d["alogo"] else if (side == "home") d["hlogo"] else aekLogo(d)
         val title = if (spoiler) spoilerTitle(d) else d["title"].orEmpty()
         val text = if (spoiler) "Νέα εξέλιξη στον αγώνα. Πάτα για να τη δεις." else d["body"].orEmpty()
-        val b = base(ctx, if (loud) CH_GOAL else CH_QUIET, title, text)
+        val b = base(ctx, if (loud) CH_GOAL else CH_MATCH, title, text)
             .setSubText(d["comp"])
             .setContentIntent(openMatch(ctx, id, 3))
             .setCategory(NotificationCompat.CATEGORY_EVENT)
-            .setPriority(if (loud) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_LOW)
+            .setPriority(if (loud) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
             .setTimeoutAfter(20 * 60_000L)
         if (!spoiler) crest(ctx, logo)?.let { b.setLargeIcon(it) }
         if (d["hl"] == "1" && d["ev"] == "goal") b.addAction(0, "Δες το γκολ", openMatch(ctx, id, 4))

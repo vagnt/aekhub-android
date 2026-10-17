@@ -1,6 +1,7 @@
 package gr.aekhub.app.ui.screens
 
 import android.Manifest
+import androidx.compose.animation.AnimatedVisibility
 import android.app.Activity
 import android.content.Intent
 import android.os.Build
@@ -257,9 +258,9 @@ private data class KindRow(val kind: String, val title: String, val sub: String,
 private fun kindRows(sp: String): List<KindRow> = buildList {
     add(KindRow(Kinds.LIVE, "Ζωντανή ειδοποίηση", "Σκορ και λεπτό σε μία ειδοποίηση που ενημερώνεται αθόρυβα σε όλο τον αγώνα.", Icons.Filled.Sensors))
     when (sp) {
-        "volleyball" -> { add(KindRow(Kinds.GOALS, "Σετ της ΑΕΚ", "Με ήχο, μόλις κερδίσει σετ η ΑΕΚ.", Icons.Filled.EmojiEvents)); add(KindRow(Kinds.OPP, "Σετ του αντιπάλου", "Αθόρυβα.", Icons.Filled.Remove)) }
+        "volleyball" -> { add(KindRow(Kinds.GOALS, "Σετ της ΑΕΚ", "Με ήχο, μόλις κερδίσει σετ η ΑΕΚ.", Icons.Filled.EmojiEvents)); add(KindRow(Kinds.OPP, "Σετ του αντιπάλου", "Κανονική ειδοποίηση, χωρίς τον ήχο γκολ.", Icons.Filled.Remove)) }
         in Kinds.NO_GOALS -> {}
-        else -> { add(KindRow(Kinds.GOALS, "Γκολ της ΑΕΚ", "Με τον ήχο γκολ του AEK Hub, τη στιγμή που μπαίνει.", Icons.Filled.EmojiEvents)); add(KindRow(Kinds.OPP, "Γκολ του αντιπάλου", "Αθόρυβα.", Icons.Filled.Remove)) }
+        else -> { add(KindRow(Kinds.GOALS, "Γκολ της ΑΕΚ", "Με τον ήχο γκολ του AEK Hub, τη στιγμή που μπαίνει.", Icons.Filled.EmojiEvents)); add(KindRow(Kinds.OPP, "Γκολ του αντιπάλου", "Κανονική ειδοποίηση, μαζί και τα ακυρωμένα γκολ.", Icons.Filled.Remove)) }
     }
     add(KindRow(Kinds.STARTEND, when (sp) { "basketball" -> "Τζάμπολ, δεκάλεπτα, τελικό"; "volleyball" -> "Έναρξη και τελικό"; "waterpolo" -> "Έναρξη, περίοδοι, τελικό"; else -> "Σέντρα, ημίχρονο, τελικό" },
         "Το τελικό έρχεται με σκόρερ και κουμπί για στιγμιότυπα και βαθμολογία.", Icons.Filled.Flag))
@@ -273,29 +274,34 @@ private fun kindRows(sp: String): List<KindRow> = buildList {
 @Composable
 private fun SportCard(key: String, name: String, s: AppSettings, toggle: () -> Unit, set: (String, Boolean) -> Unit) {
     val follow = key in s.sports
+    var open by androidx.compose.runtime.saveable.rememberSaveable(key) { mutableStateOf(false) }
+    val rows = kindRows(key)
+    val onCount = rows.count { "$key:${it.kind}" in s.kinds }
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(C.Panel).border(1.dp, if (follow) C.Gold.copy(alpha = 0.45f) else C.Line, RoundedCornerShape(18.dp))) {
-        Row(Modifier.fillMaxWidth().clickable(onClick = toggle).padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth().clickable { if (follow) open = !open else { toggle(); open = true } }.padding(start = 16.dp, end = 12.dp, top = 14.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             IconBox(sportIcon(key), follow)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(name, style = body(16, FontWeight.ExtraBold, if (follow) C.Text else C.Text2))
-                Text(if (follow) "Ακολουθείς" else "Καμία ειδοποίηση από αυτό το τμήμα", style = body(12, color = if (follow) C.Gold else C.Muted))
+                Text(if (follow) "Ακολουθείς · $onCount από ${rows.size} ειδοποιήσεις" else "Καμία ειδοποίηση από αυτό το τμήμα", style = body(12, color = if (follow) C.Gold else C.Muted))
             }
-            Switch(follow, { toggle() }, colors = sw())
+            if (follow) androidx.compose.material3.Icon(if (open) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, if (open) "Σύμπτυξη" else "Ανάπτυξη", tint = C.Text2, modifier = Modifier.size(24.dp))
+            Switch(follow, { on -> toggle(); open = on }, colors = sw())
         }
-        if (follow) {
-            HorizontalDivider(thickness = 1.dp, color = C.Line)
-            val rows = kindRows(key)
-            rows.forEachIndexed { i, r ->
-                val on = "$key:${r.kind}" in s.kinds
-                Row(Modifier.fillMaxWidth().clickable { set(r.kind, !on) }.padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    androidx.compose.material3.Icon(r.icon, null, tint = if (on) C.Gold else C.Muted, modifier = Modifier.size(20.dp))
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(r.title, style = body(14, FontWeight.Bold, if (on) C.Text else C.Text2))
-                        Text(r.sub, style = body(11, color = C.Muted).copy(lineHeight = 15.sp))
+        AnimatedVisibility(follow && open) {
+            Column {
+                HorizontalDivider(thickness = 1.dp, color = C.Line)
+                rows.forEachIndexed { i, r ->
+                    val on = "$key:${r.kind}" in s.kinds
+                    Row(Modifier.fillMaxWidth().clickable { set(r.kind, !on) }.padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        androidx.compose.material3.Icon(r.icon, null, tint = if (on) C.Gold else C.Muted, modifier = Modifier.size(20.dp))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(r.title, style = body(14, FontWeight.Bold, if (on) C.Text else C.Text2))
+                            Text(r.sub, style = body(11, color = C.Muted).copy(lineHeight = 15.sp))
+                        }
+                        Switch(on, { set(r.kind, it) }, colors = sw())
                     }
-                    Switch(on, { set(r.kind, it) }, colors = sw())
+                    if (i < rows.lastIndex) HorizontalDivider(Modifier.padding(start = 48.dp, end = 12.dp), thickness = 1.dp, color = C.Line)
                 }
-                if (i < rows.lastIndex) HorizontalDivider(Modifier.padding(start = 48.dp, end = 12.dp), thickness = 1.dp, color = C.Line)
             }
         }
     }
