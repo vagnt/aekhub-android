@@ -256,13 +256,12 @@ private fun sportIcon(k: String) = when (k) {
 /** Οι επιλογές κάθε αθλήματος, με τη γλώσσα του (γκολ/σετ, ενδεκάδα/πεντάδα, κάρτες/αποβολές). */
 private data class KindRow(val kind: String, val title: String, val sub: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
 private fun kindRows(sp: String): List<KindRow> = buildList {
-    add(KindRow(Kinds.LIVE, "Ζωντανή ειδοποίηση", "Σκορ και λεπτό σε μία ειδοποίηση που ενημερώνεται αθόρυβα σε όλο τον αγώνα.", Icons.Filled.Sensors))
     when (sp) {
         "volleyball" -> { add(KindRow(Kinds.GOALS, "Σετ της ΑΕΚ", "Με ήχο, μόλις κερδίσει σετ η ΑΕΚ.", Icons.Filled.EmojiEvents)); add(KindRow(Kinds.OPP, "Σετ του αντιπάλου", "Κανονική ειδοποίηση, χωρίς τον ήχο γκολ.", Icons.Filled.Remove)) }
         in Kinds.NO_GOALS -> {}
         else -> { add(KindRow(Kinds.GOALS, "Γκολ της ΑΕΚ", "Με τον ήχο γκολ του AEK Hub, τη στιγμή που μπαίνει.", Icons.Filled.EmojiEvents)); add(KindRow(Kinds.OPP, "Γκολ του αντιπάλου", "Κανονική ειδοποίηση, μαζί και τα ακυρωμένα γκολ.", Icons.Filled.Remove)) }
     }
-    add(KindRow(Kinds.STARTEND, when (sp) { "basketball" -> "Τζάμπολ, δεκάλεπτα, τελικό"; "volleyball" -> "Έναρξη και τελικό"; "waterpolo" -> "Έναρξη, περίοδοι, τελικό"; else -> "Σέντρα, ημίχρονο, τελικό" },
+    add(KindRow(Kinds.STARTEND, when (sp) { "basketball" -> "Τζάμπολ, δεκάλεπτα, τελικό"; "volleyball" -> "Έναρξη, κάθε σετ, τελικό"; "waterpolo" -> "Έναρξη, περίοδοι, τελικό"; else -> "Σέντρα, ημίχρονο, τελικό" },
         "Το τελικό έρχεται με σκόρερ και κουμπί για στιγμιότυπα και βαθμολογία.", Icons.Filled.Flag))
     add(KindRow(Kinds.LINEUP, when (sp) { "basketball" -> "Αρχική πεντάδα"; "volleyball" -> "Αρχική εξάδα"; "football", "women_football" -> "Ενδεκάδα"; else -> "Αρχική σύνθεση" },
         "Μόλις ανακοινωθεί.", Icons.Filled.Groups))

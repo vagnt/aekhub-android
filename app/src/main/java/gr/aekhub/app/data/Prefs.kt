@@ -39,14 +39,14 @@ data class Settings(
 object Kinds {
     const val LIVE = "live"; const val GOALS = "goals"; const val OPP = "opp"; const val STARTEND = "startend"
     const val LINEUP = "lineup"; const val CARDS = "cards"; const val REMINDER = "reminder"
-    val ALL = listOf(LIVE, GOALS, OPP, STARTEND, LINEUP, REMINDER, CARDS)
+    val ALL = listOf(GOALS, OPP, STARTEND, LINEUP, REMINDER, CARDS)
     val SPORTS = listOf("football", "basketball", "volleyball", "handball", "women_football", "futsal", "waterpolo")
     /** Αθλήματα χωρίς ειδοποίηση σε κάθε σκορ (μόνο φάσεις και τελικό). */
     val NO_GOALS = setOf("basketball", "handball")
 }
 fun defaultKinds(goals: Boolean = true, startEnd: Boolean = true, lineup: Boolean = true, cards: Boolean = false): Set<String> = buildSet {
     Kinds.SPORTS.forEach { sp ->
-        add("$sp:${Kinds.LIVE}"); add("$sp:${Kinds.REMINDER}")
+        add("$sp:${Kinds.REMINDER}")
         if (goals) { add("$sp:${Kinds.GOALS}"); add("$sp:${Kinds.OPP}") }
         if (startEnd) add("$sp:${Kinds.STARTEND}")
         if (lineup) add("$sp:${Kinds.LINEUP}")

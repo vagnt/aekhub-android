@@ -32,7 +32,6 @@ object Push {
         add("app_sync") // αθόρυβη άμεση ανανέωση περιεχομένου (χωρίς ειδοποίηση)
         if (!s.nAll) return@buildSet // γενικός διακόπτης κλειστός: καμία ειδοποίηση
         s.sports.forEach { sp ->
-            if (s.wants(sp, Kinds.LIVE)) add("m_${sp}_live")
             if (s.wants(sp, Kinds.GOALS) || s.wants(sp, Kinds.OPP)) add("m_${sp}_goals") // γκολ αντιπάλου: φιλτράρεται στο κινητό
             if (s.wants(sp, Kinds.STARTEND)) add("m_${sp}_startend")
             if (s.wants(sp, Kinds.LINEUP)) add("m_${sp}_lineup")
