@@ -208,7 +208,7 @@ object Notifs {
         val b = d["clockB"]?.toDoubleOrNull(); val st = d["clockS"]?.toDoubleOrNull(); val l = d["clockL"]?.toDoubleOrNull() ?: 45.0
         if (b != null && st != null && st > 0) {
             val el = System.currentTimeMillis() - st
-            if (el in 0L..3 * 3_600_000L) {
+            if (el >= 0.0 && el <= 3 * 3_600_000.0) {
                 val min = kotlin.math.floor(b + el / 60000.0).toInt() + 1
                 val end = (b + l).toInt()
                 return if (min > end) "$end+${min - end}′" else "$min′"
