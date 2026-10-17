@@ -92,6 +92,7 @@ fun StandingsScreen() {
             onRefresh = { scope.launch { refreshing = true; runCatching { list = Api.standings(fresh = true).items }; refreshing = false } },
         ) {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp)) {
+                item(key = "pb") { gr.aekhub.app.ads.PresentedBy("standings", Modifier.padding(bottom = 10.dp)) }
                 item(key = "t" + t.id) { Table(t) }
             }
         }

@@ -144,6 +144,7 @@ fun MatchScreen(id: Long, back: () -> Unit) {
         item(key = "hero") {
             Hero(d, alert, back) { scope.launch { prefs.toggleMatchAlert(d.id) } }
         }
+        item(key = "presented") { gr.aekhub.app.ads.PresentedBy("match", Modifier.padding(horizontal = 16.dp)) }
         d.stream?.let { s -> item(key = "stream") { StreamCard(s.thumb, s.label, s.kicker, s.state, if (playStream && s.embed.isNotBlank()) s.embed else null) { if (s.embed.isNotBlank()) playStream = true else open(s.url) } } }
         if (d.highlights.isNotEmpty()) item(key = "hl") {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {

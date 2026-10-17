@@ -92,6 +92,7 @@ fun LiveScoreBanner(openMatch: (Long) -> Unit) {
                 first = false
             }
             val anyLive = list?.any { it.live || it.status == "prematch" } == true
+            if (list != null) gr.aekhub.app.ads.Ads.aekLive = list.any { it.live }
             // Περιμένει το «σήμα» του server ή, για σιγουριά, 15″ (live) / 90″
             fresh = withTimeoutOrNull(if (anyLive) 15_000L else 90_000L) { Live.ping.first() } != null
         }

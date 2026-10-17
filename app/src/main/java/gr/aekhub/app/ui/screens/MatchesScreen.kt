@@ -191,7 +191,7 @@ fun MatchesScreen(openMatch: (Long) -> Unit) {
                         MatchCardView(m, settings.matchAlerts.contains(m.id.toString()), { scope.launch { prefs.toggleMatchAlert(m.id) } }) { openMatch(m.id) }
                     }
                     val ads = config?.ads
-                    if (ads != null && ads.enabled && ads.matches) item(key = "ad") { BannerAd(ads) }
+                    if (ads != null && ads.matches) item(key = "ad") { BannerAd(ads, place = "matches") }
                 }
             } }
         }

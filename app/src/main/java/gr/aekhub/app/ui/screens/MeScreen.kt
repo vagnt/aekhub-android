@@ -143,6 +143,31 @@ fun MeScreen(openPost: (Long) -> Unit) {
         item { SectionLabel("ΑΠΟΘΗΚΕΥΜΕΝΑ ΑΡΘΡΑ") }
         if (s.saved.isEmpty()) item { Text("Πάτα το σημαδάκι σε ένα άρθρο για να το βρίσκεις εδώ.", style = body(14, color = C.Muted)) }
         items(s.saved, key = { "s" + it.id }) { p -> PostRow(p) { openPost(p.id) } }
+        val rw = config?.ads?.reward
+        if (rw != null && rw.on && config?.ads?.enabled == true) item {
+            // Rewarded: ο αναγνώστης βλέπει ένα βίντεο → χωρίς διαφημίσεις για Χ ώρες
+            val free by Ads.adFreeUntil.collectAsState()
+            var busy by remember { mutableStateOf(false) }
+            val isFree = System.currentTimeMillis() < free
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(C.Panel).border(1.dp, if (isFree) C.Gold else C.Line, RoundedCornerShape(18.dp))
+                    .clickable(enabled = !isFree && !busy) {
+                        val a = ctx as? Activity ?: return@clickable
+                        busy = true; Ads.showReward(a, rw.hours) { busy = false }
+                    }.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(if (isFree) "✅" else "🎬", style = body(24))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(if (isFree) "Χωρίς διαφημίσεις" else "Χωρίς διαφημίσεις για ${rw.hours} ώρες", style = body(15, FontWeight.ExtraBold))
+                    Text(
+                        if (isFree) "Μέχρι " + java.text.SimpleDateFormat("d/M HH:mm", java.util.Locale.ROOT).format(java.util.Date(free)) + ". Ευχαριστούμε που στηρίζεις το AEK Hub!"
+                        else if (busy) "Φορτώνει…" else "Δες ένα σύντομο βίντεο και κλείνουν οι διαφημίσεις.",
+                        style = body(12, color = C.Muted),
+                    )
+                }
+            }
+        }
         if (privacy) item {
             Text("Ρυθμίσεις απορρήτου διαφημίσεων", Modifier.clickable { (ctx as? Activity)?.let { Ads.showPrivacy(it) } }.padding(vertical = 8.dp),
                 style = body(14, FontWeight.Bold, C.Gold))

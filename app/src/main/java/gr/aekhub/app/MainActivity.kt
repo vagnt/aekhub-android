@@ -118,7 +118,9 @@ class MainActivity : ComponentActivity() {
                         AppRoot(deep)
                         // Animation ανοίγματος με το logo (μία φορά ανά άνοιγμα, όχι σε περιστροφή οθόνης)
                         var intro by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(savedInstanceState == null) }
-                        if (intro) gr.aekhub.app.ui.components.IntroSplash { intro = false }
+                        if (intro) gr.aekhub.app.ui.components.IntroSplash { intro = false; Ads.maybeSplash(this@MainActivity) }
+                        // Χορηγός σε πλήρη οθόνη (splash / fullscreen) πάνω από όλα
+                        gr.aekhub.app.ads.SponsorOverlay()
                     }
                 }
             }
@@ -129,6 +131,7 @@ class MainActivity : ComponentActivity() {
     private var resumedOnce = false
     override fun onResume() {
         super.onResume()
+        Ads.attach(this)
         if (resumedOnce) gr.aekhub.app.live.Live.ping() else resumedOnce = true
     }
 

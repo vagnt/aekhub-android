@@ -141,6 +141,7 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
                         lh != null && lh.type == "match" && lh.match != null -> item(key = "lh") {
                             // Το σκορ από την πιο φρέσκια πηγή (λίστα αγώνων, κάθε 15″), όχι από την αρχική
                             LiveMatchHero(heroLive ?: lh.match, lh.image) { openMatch(lh.id) }
+                            gr.aekhub.app.ads.PresentedBy("live", Modifier.padding(top = 8.dp))
                         }
                         lh != null && lh.type == "event" -> item(key = "lh") { LiveEventHero(lh.title, lh.image) { openEvent(lh.id) } }
                         else -> h.featured?.let { f -> item(key = "feat") { FeaturedCard(f) { openPost(f.id) } } }
@@ -161,7 +162,7 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
                         sec.items.firstOrNull()?.let { first -> item(key = "s" + sec.slug + first.id) { PostCardMedium(first) { openPost(first.id) } } }
                         items(sec.items.drop(1).take(3), key = { "s" + sec.slug + it.id }) { p -> PostRow(p) { openPost(p.id) } }
                         val ads = config?.ads
-                        if (ads != null && ads.enabled && si % 2 == 1) item(key = "ad$si") { BannerAd(ads) }
+                        if (ads != null && si % 2 == 1) item(key = "ad$si") { if (si == 1) gr.aekhub.app.ads.FeedAd(ads) else BannerAd(ads, place = "home") }
                     }
                     if (h.socials.isNotEmpty()) item(key = "soc") { Box(Modifier.padding(top = 16.dp)) { SocialSection(h.socials) } }
                 }
@@ -245,7 +246,7 @@ private fun NewsList(cat: String?, openPost: (Long) -> Unit, ads: AdsConfig?) {
                 itemsIndexed(items, key = { _, p -> p.id }) { i, p ->
                     Column {
                         if (i == 0 && cat != null) PostCardMedium(p) { openPost(p.id) } else PostRow(p) { openPost(p.id) }
-                        if (ads != null && ads.enabled && (i + 1) % ads.everyN.coerceAtLeast(4) == 0) BannerAd(ads)
+                        if (ads != null && (i + 1) % ads.everyN.coerceAtLeast(4) == 0) gr.aekhub.app.ads.FeedAd(ads)
                     }
                 }
                 // Όχι ατελείωτο scroll: κουμπί για τα επόμενα

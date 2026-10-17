@@ -111,5 +111,14 @@ object Api {
     suspend fun match(id: Long, fresh: Boolean = false): MatchDetail = json.decodeFromString(get("/match/$id", fresh))
     suspend fun home(fresh: Boolean = false): HomeData = json.decodeFromString(get("/home", fresh))
     suspend fun event(id: Long, fresh: Boolean = false): EventDetail = json.decodeFromString(get("/event/$id", fresh))
+    /** Μετρητής καμπανιών χορηγών (εμφάνιση «i» / κλικ «c»). Αθόρυβα, χωρίς να περιμένει απάντηση. */
+    fun track(campaign: String, ev: String) {
+        if (!::http.isInitialized) return
+        val req = Request.Builder().url(BASE + "/adtrack?c=" + q(campaign) + "&e=" + ev).post(ByteArray(0).toRequestBody(null)).build()
+        http.newCall(req).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {}
+            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) { response.close() }
+        })
+    }
     suspend fun standings(fresh: Boolean = false): StandingsList = json.decodeFromString(get("/standings", fresh))
 }

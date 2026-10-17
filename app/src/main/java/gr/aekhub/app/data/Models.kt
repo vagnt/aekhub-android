@@ -15,6 +15,28 @@ data class AdsConfig(
     val everyN: Int = 8,
     val article: Boolean = true,
     val matches: Boolean = false,
+    val inter: InterCfg = InterCfg(),
+    val native: NativeCfg = NativeCfg(),
+    val reward: RewardCfg = RewardCfg(),
+    val splash: Boolean = true,
+    val campaigns: List<Campaign> = emptyList(),
+) {
+    /** Μια καμπάνια χορηγού για τη θέση (με βάρος), αν υπάρχει. */
+    fun pick(type: String, place: String = "all"): Campaign? {
+        val l = campaigns.filter { it.type == type && (it.place == "all" || it.place == place || place == "all") }
+        if (l.isEmpty()) return null
+        var r = kotlin.random.Random.nextInt(l.sumOf { it.weight.coerceAtLeast(1) })
+        for (c in l) { r -= c.weight.coerceAtLeast(1); if (r < 0) return c }
+        return l.first()
+    }
+}
+
+@Serializable data class InterCfg(val on: Boolean = false, val unit: String = "", val every: Int = 4, val gapMin: Int = 3, val liveOff: Boolean = true)
+@Serializable data class NativeCfg(val on: Boolean = false, val unit: String = "")
+@Serializable data class RewardCfg(val on: Boolean = false, val unit: String = "", val hours: Int = 24)
+@Serializable data class Campaign(
+    val id: String, val type: String, val place: String = "all", val name: String = "",
+    val image: String = "", val link: String = "", val title: String = "", val cta: String = "", val weight: Int = 1,
 )
 
 @Serializable

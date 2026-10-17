@@ -92,6 +92,8 @@ fun ArticleScreen(id: Long, back: () -> Unit, openPost: (Long) -> Unit = {}) {
     var more by remember { mutableStateOf<List<gr.aekhub.app.data.PostCard>>(emptyList()) }
     LaunchedEffect(id) { runCatching { more = Api.feed(null, 1).items.filter { it.id != id }.take(5) } }
     val list = androidx.compose.foundation.lazy.rememberLazyListState()
+    // Κλείνει το άρθρο → ίσως fullscreen (με τη συχνότητα του wp-admin)
+    androidx.compose.runtime.DisposableEffect(id) { onDispose { gr.aekhub.app.ads.Ads.onArticleClosed() } }
     LaunchedEffect(id, key) {
         error = false
         // Αν το άρθρο έχει ξανανοίξει, φαίνεται αμέσως από την αποθήκευση
@@ -159,7 +161,7 @@ fun ArticleScreen(id: Long, back: () -> Unit, openPost: (Long) -> Unit = {}) {
                 Column(Modifier.offset(y = if (p.videoInfo != null) 0.dp else (-40).dp)) {
                     BlockView(blocks[i], scale)
                     val a = ads
-                    if (a != null && a.article && (i == 2 && blocks.size > 5 || i == blocks.size - 1)) BannerAd(a, medium = true, modifier = Modifier.padding(top = 16.dp))
+                    if (a != null && a.article && (i == 2 && blocks.size > 5 || i == blocks.size - 1)) BannerAd(a, medium = true, modifier = Modifier.padding(top = 16.dp), place = "article")
                 }
             }
             if (socials.isNotEmpty()) item(key = "socials") {
