@@ -52,11 +52,24 @@ object Api {
     private suspend fun get(path: String, fresh: Boolean = false): String = withContext(Dispatchers.IO) {
         val url = BASE + path + (if ('?' in path) "&" else "?") + "_=" + System.currentTimeMillis()
         val req = Request.Builder().url(url).cacheControl(okhttp3.CacheControl.FORCE_NETWORK).header("Cache-Control", "no-cache").build()
-        http.newCall(req).execute().use { r ->
-            if (!r.isSuccessful) throw IOException("HTTP " + r.code)
-            (r.body?.string() ?: throw IOException("Κενή απάντηση")).also { save(path, it) }
+        try {
+            http.newCall(req).execute().use { r ->
+                if (!r.isSuccessful) throw IOException("HTTP " + r.code)
+                val b = r.body?.string() ?: throw IOException("Κενή απάντηση")
+                if (!b.trimStart().startsWith("{") && !b.trimStart().startsWith("[")) throw IOException("Όχι JSON: " + b.take(80))
+                lastOk = System.currentTimeMillis()
+                b.also { save(path, it) }
+            }
+        } catch (e: Exception) {
+            lastErr = path.substringBefore('?') + " → " + (e.message ?: e.javaClass.simpleName); lastErrAt = System.currentTimeMillis()
+            throw e
         }
     }
+
+    /** Διάγνωση (οθόνη «Εγώ»): πότε μιλήσαμε τελευταία φορά με τον server και τι σφάλμα υπήρξε. */
+    @Volatile var lastOk = 0L
+    @Volatile var lastErr = ""
+    @Volatile var lastErrAt = 0L
 
     // Διαδρομές (ίδιες με τις κλήσεις) για να διαβάζουν οι οθόνες τα αποθηκευμένα
     fun pHome() = "/home"

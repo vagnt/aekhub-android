@@ -140,6 +140,16 @@ fun MeScreen(openPost: (Long) -> Unit) {
         }
         if ((config?.socials ?: emptyList()).isNotEmpty()) item { SocialRow(config!!.socials) }
         item { Text("AEK Hub " + BuildConfig.VERSION_NAME, Modifier.padding(top = 12.dp), style = body(12, color = C.Muted)) }
+        item {
+            // Διάγνωση σύνδεσης με το aekhub.gr (ανανεώνεται κάθε 2″)
+            var tick by remember { mutableStateOf(0) }
+            LaunchedEffect(Unit) { while (true) { kotlinx.coroutines.delay(2_000); tick++ } }
+            tick
+            val f = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.ROOT)
+            val ok = if (Api.lastOk > 0) "τελευταία επιτυχία " + f.format(java.util.Date(Api.lastOk)) else "καμία επιτυχής σύνδεση ακόμη"
+            val err = if (Api.lastErrAt > 0) "\nσφάλμα " + f.format(java.util.Date(Api.lastErrAt)) + ": " + Api.lastErr else ""
+            Text("Server: $ok$err", style = body(11, color = C.Muted))
+        }
     }
 }
 
