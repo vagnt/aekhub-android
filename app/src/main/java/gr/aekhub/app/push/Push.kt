@@ -44,6 +44,7 @@ object Push {
             if (s.nCards) add("m_${sp}_cards")
         }
         if (s.nBreaking) add("news_breaking")
+        if (s.nTest) add("push_test") // δοκιμαστικοί αγώνες (🧪) — μόνο για όσους το ανοίξουν
         s.matchAlerts.forEach { add("match_$it") }
     }
 

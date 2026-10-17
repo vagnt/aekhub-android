@@ -128,7 +128,8 @@ fun MeScreen(openPost: (Long) -> Unit) {
         item {
             Group("ΕΙΔΗΣΕΙΣ") {
                 Toggle("Έκτακτα", "Μεταγραφές, ανακοινώσεις", s.nBreaking) { scope.launch { prefs.setFlag("breaking", it) } }
-                Toggle("Ήσυχες ώρες", "01:00 – 08:00, εκτός από γκολ", s.nQuiet, last = true) { scope.launch { prefs.setFlag("quiet", it) } }
+                Toggle("Ήσυχες ώρες", "01:00 – 08:00, εκτός από γκολ", s.nQuiet) { scope.launch { prefs.setFlag("quiet", it) } }
+                Toggle("Δοκιμαστικές ειδοποιήσεις", "Για συντάκτες: και από τους 🧪 δοκιμαστικούς αγώνες", s.nTest, last = true) { scope.launch { prefs.setFlag("test", it) } }
             }
         }
         item { SectionLabel("ΑΠΟΘΗΚΕΥΜΕΝΑ ΑΡΘΡΑ") }

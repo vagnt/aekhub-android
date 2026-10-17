@@ -23,6 +23,7 @@ data class Settings(
     val nCards: Boolean = false,
     val nBreaking: Boolean = true,
     val nQuiet: Boolean = false,
+    val nTest: Boolean = false,
     val matchAlerts: Set<String> = emptySet(),
     val saved: List<PostCard> = emptyList(),
 )
@@ -37,6 +38,7 @@ class Prefs(private val ctx: Context) {
         val cards = booleanPreferencesKey("n_cards")
         val breaking = booleanPreferencesKey("n_breaking")
         val quiet = booleanPreferencesKey("n_quiet")
+        val test = booleanPreferencesKey("n_test")
         val matchAlerts = stringSetPreferencesKey("match_alerts")
         val saved = stringPreferencesKey("saved")
     }
@@ -54,6 +56,7 @@ class Prefs(private val ctx: Context) {
             nCards = p[K.cards] ?: d.nCards,
             nBreaking = p[K.breaking] ?: d.nBreaking,
             nQuiet = p[K.quiet] ?: d.nQuiet,
+            nTest = p[K.test] ?: d.nTest,
             matchAlerts = p[K.matchAlerts] ?: emptySet(),
             saved = p[K.saved]?.let { runCatching { Api.json.decodeFromString(savedSer, it) }.getOrNull() } ?: emptyList(),
         )
@@ -75,7 +78,7 @@ class Prefs(private val ctx: Context) {
     suspend fun setFlag(name: String, v: Boolean) = ctx.store.edit { p ->
         val key: Preferences.Key<Boolean> = when (name) {
             "goals" -> K.goals; "startEnd" -> K.startEnd; "lineup" -> K.lineup
-            "cards" -> K.cards; "breaking" -> K.breaking; else -> K.quiet
+            "cards" -> K.cards; "breaking" -> K.breaking; "test" -> K.test; else -> K.quiet
         }
         p[key] = v
     }
