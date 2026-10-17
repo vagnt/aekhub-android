@@ -266,6 +266,7 @@ object Notifs {
             val segs = when (sp) { "futsal" -> listOf(20, 20); "handball" -> listOf(30, 30); "waterpolo" -> List(4) { 8 }; "basketball" -> List(4) { 10 }; else -> listOf(45, 45) }
             val total = segs.sum()
             val pos = when {
+                sp == "volleyball" -> null // βόλεϊ: χωρίς χρόνο — το «3ο Σετ · 18–15» γράφεται στο κείμενο
                 sp == "basketball" && q != null -> q * 10 - 5
                 m != null -> m.coerceIn(0, total)
                 status == "halftime" || status == "ht" -> total / 2

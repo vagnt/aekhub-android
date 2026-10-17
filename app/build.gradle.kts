@@ -15,8 +15,8 @@ android {
         applicationId = "gr.aekhub.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 19
-        versionName = "0.9.2"
+        versionCode = 20
+        versionName = "0.9.3"
         buildConfigField("String", "SITE", "\"https://aekhub.gr\"")
         // AdMob App ID (δημόσιο αναγνωριστικό). Μέχρι να μπει το δικό μας, το δοκιμαστικό της Google.
         manifestPlaceholders["admobAppId"] = (project.findProperty("admobAppId") as String?) ?: "ca-app-pub-3940256099942544~3347511713"
