@@ -40,7 +40,7 @@ import java.time.ZoneId
 object Notifs {
     // Κανάλια (ο χρήστης τα ρυθμίζει και από τις ρυθμίσεις του Android)
     const val CH_LIVE = "live_match"
-    const val CH_GOAL = "goal_aek"
+    const val CH_GOAL = "aek_score" // νέο κανάλι στο 0.9.1: ο ήχος ενός καναλιού δεν αλλάζει μετά τη δημιουργία του
     const val CH_MATCH = "matchday"
     const val CH_QUIET = "match_quiet"
     const val CH_NEWS = "news"
@@ -62,15 +62,16 @@ object Notifs {
         if (Build.VERSION.SDK_INT < 26) return
         val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
         runCatching { nm.deleteNotificationChannel("matches") } // παλιό κανάλι (έως 0.8)
+        runCatching { nm.deleteNotificationChannel("goal_aek") } // παλιός ήχος κόρνας (0.9.0)
         nm.createNotificationChannel(NotificationChannel(CH_LIVE, "Ζωντανός αγώνας", NotificationManager.IMPORTANCE_DEFAULT).apply {
             description = "Μία ειδοποίηση ανά αγώνα με σκορ και λεπτό, που ενημερώνεται αθόρυβα"
             setSound(null, null); enableVibration(false); setShowBadge(false)
         })
-        nm.createNotificationChannel(NotificationChannel(CH_GOAL, "Γκολ της ΑΕΚ", NotificationManager.IMPORTANCE_HIGH).apply {
-            description = "Με τον ήχο γκολ του AEK Hub"
-            setSound(Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.aek_goal),
+        nm.createNotificationChannel(NotificationChannel(CH_GOAL, "Σκορ της ΑΕΚ", NotificationManager.IMPORTANCE_HIGH).apply {
+            description = "Γκολ, καλάθι ή σετ της ΑΕΚ, με τον ήχο του AEK Hub"
+            setSound(Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.aek_chime),
                 AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
-            enableVibration(true); vibrationPattern = longArrayOf(0, 180, 90, 180, 90, 420)
+            enableVibration(true); vibrationPattern = longArrayOf(0, 120, 80, 120)
         })
         nm.createNotificationChannel(NotificationChannel(CH_MATCH, "Ημέρα αγώνα", NotificationManager.IMPORTANCE_DEFAULT).apply {
             description = "Υπενθύμιση, ενδεκάδα, σέντρα, τελικό"
