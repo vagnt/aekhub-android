@@ -243,8 +243,10 @@ object Notifs {
         val title = if (spoiler) vs(d) else line(d)
         val text = if (spoiler) (if (done) "Ο αγώνας τελείωσε." else "Σε εξέλιξη" + (if (when_.isNotBlank()) " · $when_" else ""))
             else listOf(if (done) "Τελικό" else when_, d["scorers"].orEmpty()).filter { it.isNotBlank() }.joinToString(" · ")
+        // Ο χρόνος του αγώνα και στην κεφαλίδα, για να φαίνεται και όταν η ειδοποίηση είναι μαζεμένη
+        val head = listOf(if (done) "Τελικό" else min.ifBlank { phase }, d["comp"].orEmpty()).filter { it.isNotBlank() }.joinToString(" · ")
         val b = base(ctx, CH_LIVE, title, text)
-            .setSubText(d["comp"])
+            .setSubText(head)
             .setOngoing(!done)
             .setOnlyAlertOnce(true)
             .setSilent(!alert)
@@ -256,13 +258,22 @@ object Notifs {
         if (!done) b.addAction(muteAction(ctx, id))
         crest(ctx, aekLogo(d))?.let { b.setLargeIcon(it) }
         // Μπάρα αγώνα: ποδόσφαιρο/futsal/πόλο με το λεπτό, μπάσκετ με το δεκάλεπτο
+        var rich: Any? = null
         if (!done) {
             val m = Regex("""^(\d+)""").find(min)?.groupValues?.get(1)?.toIntOrNull()
             val q = Regex("""^q(\d)$""").find(status)?.groupValues?.get(1)?.toIntOrNull()
-            val total = when (d["sport"]) { "futsal" -> 40; "waterpolo" -> 32; else -> 90 }
-            when {
-                m != null -> b.setProgress(total, m.coerceAtMost(total), false)
-                q != null -> b.setProgress(4, q, false)
+            val sp = d["sport"] ?: "football"
+            val segs = when (sp) { "futsal" -> listOf(20, 20); "handball" -> listOf(30, 30); "waterpolo" -> List(4) { 8 }; "basketball" -> List(4) { 10 }; else -> listOf(45, 45) }
+            val total = segs.sum()
+            val pos = when {
+                sp == "basketball" && q != null -> q * 10 - 5
+                m != null -> m.coerceIn(0, total)
+                status == "halftime" || status == "ht" -> total / 2
+                else -> null
+            }
+            if (pos != null) {
+                b.setProgress(total, pos, false)
+                if (Build.VERSION.SDK_INT >= 36) rich = matchBar(ctx, d, segs, pos)
             }
             // Android 16: προώθηση σε Live Update, με σκορ/λεπτό στη γραμμή κατάστασης
             b.addExtras(Bundle().apply {
@@ -270,9 +281,40 @@ object Notifs {
                 putString("android.shortCriticalText", if (spoiler) (min.ifBlank { "LIVE" }) else (d["sh"] ?: "0") + "–" + (d["sa"] ?: "0"))
             })
         } else b.setTimeoutAfter(3 * 3_600_000L)
-        post(ctx, tag(id), SLOT_LIVE, b)
+        val n = b.build()
+        val out = rich?.let { st -> runCatching { android.app.Notification.Builder.recoverBuilder(ctx, n).setStyle(st as android.app.Notification.Style).build() }.getOrNull() } ?: n
+        try { NotificationManagerCompat.from(ctx).notify(tag(id), SLOT_LIVE, out) } catch (_: SecurityException) {}
         if (done) { stopTicker(ctx, id); forget(ctx, id) } else { if (!fromTick) remember(ctx, id, d); scheduleTick(ctx, id) }
     }
+
+    /**
+     * Android 16: μπάρα αγώνα με ημίχρονα/δεκάλεπτα ως κομμάτια, τα γκολ ως σημάδια πάνω της
+     * (κίτρινο/μαύρο της ΑΕΚ, γκρι του αντιπάλου) και μπαλίτσα στο τωρινό λεπτό.
+     * Με reflection, για να μη χρειάζεται SDK 36 για το build.
+     */
+    private fun matchBar(ctx: Context, d: Map<String, String>, segs: List<Int>, pos: Int): Any? = runCatching {
+        val ps = Class.forName("android.app.Notification\$ProgressStyle")
+        val segC = Class.forName("android.app.Notification\$ProgressStyle\$Segment")
+        val ptC = Class.forName("android.app.Notification\$ProgressStyle\$Point")
+        val I = Int::class.javaPrimitiveType!!
+        val style = ps.getConstructor().newInstance()
+        val total = segs.sum()
+        val segList = segs.map { len -> segC.getConstructor(I).newInstance(len).also { segC.getMethod("setColor", I).invoke(it, GOLD) } }
+        ps.getMethod("setProgressSegments", java.util.List::class.java).invoke(style, segList)
+        val aek = d["aek"].orEmpty()
+        val pts = d["goals"].orEmpty().split(',').mapNotNull { g ->
+            val side = when (g.firstOrNull()) { 'h' -> "home"; 'a' -> "away"; else -> return@mapNotNull null }
+            val at = g.drop(1).toIntOrNull()?.coerceIn(1, total - 1) ?: return@mapNotNull null
+            val col = if (aek.isEmpty() || side == aek) 0xFF0B0B0A.toInt() else 0xFF8C8A83.toInt()
+            ptC.getConstructor(I).newInstance(at).also { ptC.getMethod("setColor", I).invoke(it, col) }
+        }
+        if (pts.isNotEmpty()) ps.getMethod("setProgressPoints", java.util.List::class.java).invoke(style, pts)
+        ps.getMethod("setStyledByProgress", Boolean::class.javaPrimitiveType).invoke(style, true)
+        ps.getMethod("setProgress", I).invoke(style, pos.coerceIn(0, total))
+        ps.getMethod("setProgressTrackerIcon", android.graphics.drawable.Icon::class.java)
+            .invoke(style, android.graphics.drawable.Icon.createWithResource(ctx, R.drawable.ic_track_ball))
+        style
+    }.getOrNull()
 
     /** Γκολ (και ακύρωση, πέναλτι, σετ). Γκολ της ΑΕΚ: με ήχο. */
     private fun goal(ctx: Context, d: Map<String, String>, spoiler: Boolean, loud: Boolean) {
@@ -378,7 +420,7 @@ object Notifs {
     private fun tickIntent(ctx: Context, id: Long) = broadcast(ctx, ACT_TICK, (id * 10 + 9).toInt()) { putLong("match", id) }
     private fun scheduleTick(ctx: Context, id: Long) {
         val am = ctx.getSystemService(AlarmManager::class.java) ?: return
-        am.set(AlarmManager.RTC, System.currentTimeMillis() + 60_000L, tickIntent(ctx, id))
+        am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 60_000L, tickIntent(ctx, id))
     }
     private fun stopTicker(ctx: Context, id: Long) { ctx.getSystemService(AlarmManager::class.java)?.cancel(tickIntent(ctx, id)) }
 
