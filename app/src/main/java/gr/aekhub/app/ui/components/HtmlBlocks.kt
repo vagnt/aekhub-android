@@ -125,6 +125,9 @@ object Html {
                 // Σκέτο link βίντεο/post σε δική του γραμμή (όπως το «μετατρέπει» το WordPress)
                 val only = e.text().trim()
                 if (ifr == null && imgs.isEmpty() && only.startsWith("http") && ' ' !in only && (video(only) != null || socialKind(only) != null)) { media(only, out); return }
+                // Παράγραφος που είναι μόνο ένα link σε post (το WordPress δεν «ενσωματώνει» πια Facebook): γίνεται το ίδιο το post
+                val a1 = e.children().singleOrNull()?.takeIf { it.tagName() == "a" && e.ownText().isBlank() }?.absUrl("href")
+                if (a1 != null && socialKind(a1) != null) { media(a1, out); return }
                 if (imgs.isNotEmpty() && e.text().isBlank()) { imgs.forEach { out += Block.Img(imgSrc(it), "") }; return }
                 out += Block.Para(inline(e))
             }
@@ -148,6 +151,8 @@ object Html {
             }
             "iframe" -> iframe(e, out)
             "video" -> videoTag(e, out)
+            // Facebook (Jetpack / SDK): <fb:post href>, <div class="fb-post|fb-video" data-href>
+            "fb:post", "fb:video" -> media(e.absUrl("href").ifBlank { e.attr("data-href") }, out)
             "blockquote" -> {
                 val cls = e.className()
                 if ("twitter-tweet" in cls || "instagram-media" in cls || "tiktok-embed" in cls || e.hasAttr("data-instgrm-permalink")) {
@@ -165,6 +170,11 @@ object Html {
                 if (t.isNotBlank()) out += Block.Para(AnnotatedString(t))
             }
             else -> {
+                val dh = e.attr("data-href").ifBlank { e.attr("data-instgrm-permalink") }
+                if (dh.startsWith("http") && (socialKind(dh) != null || e.hasClass("fb-post") || e.hasClass("fb-video"))) { media(dh, out); return }
+                // Σκέτος σύνδεσμος σε social post/βίντεο, μόνος του μέσα σε div
+                val lone = e.children().singleOrNull()?.takeIf { it.tagName() == "a" && e.ownText().isBlank() }?.absUrl("href")
+                if (lone != null && (socialKind(lone) != null || video(lone) != null)) { media(lone, out); return }
                 if (e.children().isEmpty()) { if (e.text().isNotBlank()) out += Block.Para(inline(e)) }
                 else {
                     // div με κείμενο ανάμεσα στα παιδιά: κείμενο + παιδιά με τη σειρά

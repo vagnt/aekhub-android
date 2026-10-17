@@ -1,5 +1,7 @@
 package gr.aekhub.app.ui.screens
 
+import gr.aekhub.app.data.alertOn
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -188,7 +190,7 @@ fun MatchesScreen(openMatch: (Long) -> Unit) {
                     }
                 } else LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(ms, key = { it.id }) { m ->
-                        MatchCardView(m, settings.matchAlerts.contains(m.id.toString()), { scope.launch { prefs.toggleMatchAlert(m.id) } }) { openMatch(m.id) }
+                        MatchCardView(m, settings.alertOn(m.id, m.sport, m.aek.isNotEmpty()).also { }, { val on = settings.alertOn(m.id, m.sport, m.aek.isNotEmpty()); scope.launch { prefs.toggleMatchAlert(m.id, on) } }) { openMatch(m.id) }
                     }
                     val ads = config?.ads
                     if (ads != null && ads.matches) item(key = "ad") { BannerAd(ads, place = "matches") }

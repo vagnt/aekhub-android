@@ -25,8 +25,16 @@ data class Settings(
     val nQuiet: Boolean = false,
     val nTest: Boolean = false,
     val matchAlerts: Set<String> = emptySet(),
+    val mutedMatches: Set<String> = emptySet(),
     val saved: List<PostCard> = emptyList(),
 )
+
+/** Θα έρθουν ειδοποιήσεις για αυτόν τον αγώνα; (ακολουθείς το άθλημα ή το πάτησες, και δεν τον έχεις σιγάσει) */
+fun Settings.alertOn(id: Long, sport: String, aek: Boolean): Boolean {
+    val k = id.toString()
+    if (k in mutedMatches) return false
+    return k in matchAlerts || (aek && sport in sports && (nGoals || nStartEnd || nLineup || nCards))
+}
 
 class Prefs(private val ctx: Context) {
     private object K {
@@ -40,6 +48,7 @@ class Prefs(private val ctx: Context) {
         val quiet = booleanPreferencesKey("n_quiet")
         val test = booleanPreferencesKey("n_test")
         val matchAlerts = stringSetPreferencesKey("match_alerts")
+        val muted = stringSetPreferencesKey("muted_matches")
         val saved = stringPreferencesKey("saved")
     }
 
@@ -58,6 +67,7 @@ class Prefs(private val ctx: Context) {
             nQuiet = p[K.quiet] ?: d.nQuiet,
             nTest = p[K.test] ?: d.nTest,
             matchAlerts = p[K.matchAlerts] ?: emptySet(),
+            mutedMatches = p[K.muted] ?: emptySet(),
             saved = p[K.saved]?.let { runCatching { Api.json.decodeFromString(savedSer, it) }.getOrNull() } ?: emptyList(),
         )
     }
@@ -69,10 +79,15 @@ class Prefs(private val ctx: Context) {
         p[K.sports] = if (key in cur) cur - key else cur + key
     }
 
-    suspend fun toggleMatchAlert(id: Long) = ctx.store.edit { p ->
-        val cur = p[K.matchAlerts] ?: emptySet()
+    /**
+     * Καμπανάκι αγώνα. Αν είναι αναμμένο (είτε επειδή ακολουθείς το άθλημα είτε χειροκίνητα) → σβήνει
+     * και ο αγώνας γίνεται «σίγαση». Αν είναι σβηστό → ανάβει για όλα τα γεγονότα του αγώνα.
+     */
+    suspend fun toggleMatchAlert(id: Long, on: Boolean) = ctx.store.edit { p ->
         val k = id.toString()
-        p[K.matchAlerts] = if (k in cur) cur - k else cur + k
+        val al = p[K.matchAlerts] ?: emptySet(); val mu = p[K.muted] ?: emptySet()
+        if (on) { p[K.matchAlerts] = al - k; p[K.muted] = mu + k }
+        else { p[K.muted] = mu - k; p[K.matchAlerts] = al + k }
     }
 
     suspend fun setFlag(name: String, v: Boolean) = ctx.store.edit { p ->

@@ -38,6 +38,8 @@ class AekMessagingService : FirebaseMessagingService() {
             if (h in 1..7) return
         }
         if (!Push.allowed(this)) return
+        // Σίγαση αγώνα από το καμπανάκι: καμία ειδοποίηση για αυτόν
+        d["match"]?.takeIf { it.isNotBlank() }?.let { if (s != null && it in s.mutedMatches) return }
         Push.channels(this)
 
         val open = Intent(this, MainActivity::class.java).apply {

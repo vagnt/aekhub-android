@@ -72,9 +72,10 @@ fun InlineVideo(embed: String, thumb: String, modifier: Modifier = Modifier, raw
 /** Τι είδους social post είναι (για τον επίσημο τρόπο ενσωμάτωσης κάθε πλατφόρμας). */
 fun socialKind(url: String): String? = when {
     Regex("""instagram\.com/(p|reel|tv)/""").containsMatchIn(url) -> "instagram"
-    Regex("""tiktok\.com/.+/video/\d+""").containsMatchIn(url) -> "tiktok"
+    Regex("""tiktok\.com/.+/video/\d+|vm\.tiktok\.com/|tiktok\.com/t/""").containsMatchIn(url) -> "tiktok"
     Regex("""(twitter|x)\.com/[^/]+/status/\d+""").containsMatchIn(url) -> "x"
-    Regex("""facebook\.com/.+/(posts|videos|photos)/|facebook\.com/permalink|fb\.watch""").containsMatchIn(url) -> "facebook"
+    // Facebook: posts, βίντεο, reels, φωτογραφίες, share links, permalink/story.php
+    Regex("""(facebook\.com|fb\.com)/(.+/(posts|videos|photos|reel|reels)/|share/|reel/|watch|permalink\.php|story\.php|photo\.php|photo/|groups/.+/(posts|permalink)/|[^/?]+/(posts|videos)/)|fb\.watch/""").containsMatchIn(url) -> "facebook"
     else -> null
 }
 
@@ -87,7 +88,11 @@ private fun socialHtml(kind: String, url: String): String {
             """<blockquote class="tiktok-embed" cite="$u" data-video-id="$id" style="max-width:100%;min-width:0;margin:0"><section></section></blockquote><script async src="https://www.tiktok.com/embed.js"></script>"""
         }
         "x" -> """<blockquote class="twitter-tweet" data-theme="dark" data-dnt="true" lang="el"><a href="${u.replace("x.com/", "twitter.com/")}"></a></blockquote><script async src="https://platform.twitter.com/widgets.js"></script>"""
-        else -> """<iframe src="https://www.facebook.com/plugins/${if ("/videos/" in url || "fb.watch" in url) "video" else "post"}.php?href=${Uri.encode(url)}&show_text=true&width=500" style="width:100%;height:600px;border:0;overflow:hidden" scrolling="no" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe>"""
+        // Facebook: το επίσημο SDK ζωγραφίζει το post και του δίνει το σωστό ύψος
+        else -> {
+            val video = Regex("""/videos/|/reel|fb\.watch|/watch""").containsMatchIn(url)
+            """<div id="fb-root"></div><div class="${if (video) "fb-video" else "fb-post"}" data-href="$u" data-width="auto" data-show-text="true" data-allowfullscreen="true"></div><script async defer crossorigin="anonymous" src="https://connect.facebook.net/el_GR/sdk.js#xfbml=1&version=v19.0"></script>"""
+        }
     }
 }
 

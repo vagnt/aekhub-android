@@ -1,5 +1,7 @@
 package gr.aekhub.app.ui.screens
 
+import gr.aekhub.app.data.alertOn
+
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Canvas
@@ -122,7 +124,7 @@ fun MatchScreen(id: Long, back: () -> Unit) {
     LaunchedEffect(id) { gr.aekhub.app.live.Live.ping.collect { runCatching { m = Api.match(id, fresh = true) } } }
     val d = m
     if (d == null) { if (error) ErrorBox { key++ } else Loading(); return }
-    val alert = settings.matchAlerts.contains(d.id.toString())
+    val alert = settings.alertOn(d.id, d.sport, d.aek.isNotEmpty())
     val hasStats = d.stats.isNotEmpty() || d.periods.isNotEmpty()
     val hasLineups = d.lineupHome.isNotEmpty() || d.lineupAway.isNotEmpty()
     // «Πορεία» μόνο όταν υπάρχουν γεγονότα. Αλλιώς μόνο Στατιστικά / Συνθέσεις.
@@ -142,7 +144,7 @@ fun MatchScreen(id: Long, back: () -> Unit) {
     ) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item(key = "hero") {
-            Hero(d, alert, back) { scope.launch { prefs.toggleMatchAlert(d.id) } }
+            Hero(d, alert, back) { scope.launch { prefs.toggleMatchAlert(d.id, alert) } }
         }
         item(key = "presented") { gr.aekhub.app.ads.PresentedBy("match", Modifier.padding(horizontal = 16.dp)) }
         d.stream?.let { s -> item(key = "stream") { StreamCard(s.thumb, s.label, s.kicker, s.state, if (playStream && s.embed.isNotBlank()) s.embed else null) { if (s.embed.isNotBlank()) playStream = true else open(s.url) } } }
