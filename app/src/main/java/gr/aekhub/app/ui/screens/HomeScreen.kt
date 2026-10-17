@@ -73,6 +73,8 @@ import gr.aekhub.app.ui.components.ScreenTitle
 import gr.aekhub.app.ui.theme.C
 import gr.aekhub.app.ui.theme.body
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** Αρχική: ενότητες ανά κατηγορία, όπως το site. Τα chips ανοίγουν τη ροή μιας κατηγορίας. */
@@ -84,6 +86,7 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
     var error by remember { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
     var live by remember { mutableStateOf<List<MatchCard>>(emptyList()) }
+    var heroLive by remember { mutableStateOf<MatchCard?>(null) }
     var key by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
 
@@ -96,6 +99,13 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
     // Άμεση ανανέωση όταν αλλάξει κάτι στο site + κάθε 60″ για σιγουριά
     LaunchedEffect(Unit) { gr.aekhub.app.live.Live.ping.collect { load(fresh = true) } }
     LaunchedEffect(Unit) { while (true) { delay(60_000); load(fresh = true) } }
+    LaunchedEffect(home?.liveHero?.id) {
+        val hid = home?.liveHero?.takeIf { it.type == "match" }?.id ?: run { heroLive = null; return@LaunchedEffect }
+        while (true) {
+            runCatching { val d = Api.match(hid); heroLive = (home?.liveHero?.match ?: return@runCatching).copy(scoreHome = d.scoreHome, scoreAway = d.scoreAway, status = d.status, statusLabel = d.statusLabel, live = d.live, minute = d.minute, clock = d.clock) }
+            withTimeoutOrNull(10_000) { gr.aekhub.app.live.Live.ping.first() }
+        }
+    }
     LaunchedEffect(key) {
         while (true) { runCatching { live = Api.matches().items.filter { it.live && it.aek.isNotEmpty() } }; delay(if (live.isNotEmpty()) 15_000 else 60_000) }
     }
@@ -128,7 +138,10 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
                     val heroMatchId = lh?.takeIf { it.type == "match" }?.id
                     items(live.filter { it.id != heroMatchId }, key = { "live" + it.id }) { m -> LiveBar(m) { openMatch(m.id) } }
                     when {
-                        lh != null && lh.type == "match" && lh.match != null -> item(key = "lh") { LiveMatchHero(lh.match, lh.image) { openMatch(lh.id) } }
+                        lh != null && lh.type == "match" && lh.match != null -> item(key = "lh") {
+                            // Το σκορ από την πιο φρέσκια πηγή (λίστα αγώνων, κάθε 15″), όχι από την αρχική
+                            LiveMatchHero(heroLive ?: lh.match, lh.image) { openMatch(lh.id) }
+                        }
                         lh != null && lh.type == "event" -> item(key = "lh") { LiveEventHero(lh.title, lh.image) { openEvent(lh.id) } }
                         else -> h.featured?.let { f -> item(key = "feat") { FeaturedCard(f) { openPost(f.id) } } }
                     }
