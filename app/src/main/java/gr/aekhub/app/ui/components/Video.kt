@@ -54,14 +54,14 @@ import gr.aekhub.app.ui.theme.body
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun VideoPlayer(embed: String, modifier: Modifier = Modifier) {
+fun VideoPlayer(embed: String, modifier: Modifier = Modifier, rawHtml: String = "") {
     val ctx = LocalContext.current
     var full by remember { mutableStateOf<View?>(null) }
     var fullCb by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
     val html = """
         <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
         <style>html,body{margin:0;height:100%;background:#000}iframe{position:absolute;inset:0;width:100%;height:100%;border:0}</style></head>
-        <body><iframe src="${embed.replace("\"", "&quot;")}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe></body></html>
+        <body>${if (rawHtml.isNotBlank()) rawHtml else if (isFile(embed)) "<video src=\"" + embed.replace("\"", "&quot;") + "\" controls autoplay playsinline style=\"position:absolute;inset:0;width:100%;height:100%;background:#000\"></video>" else "<iframe src=\"" + embed.replace("\"", "&quot;") + "\" allow=\"autoplay; encrypted-media; fullscreen; picture-in-picture\" allowfullscreen></iframe>"}</body></html>
     """.trimIndent()
     AndroidView(
         modifier = modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Color.Black),
@@ -101,6 +101,9 @@ fun VideoPlayer(embed: String, modifier: Modifier = Modifier) {
         }
     }
 }
+
+/** Απευθείας αρχείο βίντεο (mp4 κ.λπ.): παίζει με τον player του Android WebView. */
+private fun isFile(u: String) = Regex("""\.(mp4|webm|m4v|mov|m3u8)(\?|$)""", RegexOption.IGNORE_CASE).containsMatchIn(u)
 
 /** Popup με βίντεο (στιγμιότυπα): ανοίγει πάνω από τη σελίδα, κλείνει με Χ ή «πίσω». */
 @Composable

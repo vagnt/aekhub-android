@@ -38,7 +38,12 @@ data class PostCard(
     val image: String = "",
     val category: String = "",
     val link: String = "",
+    val video: Boolean = false,
 )
+
+/** Το βίντεο ενός video post (YouTube / Vimeo / Facebook / embed παρόχου). */
+@Serializable
+data class VideoInfo(val url: String = "", val embed: String = "", val html: String = "", val thumb: String = "")
 
 @Serializable
 data class Feed(
@@ -62,8 +67,10 @@ data class Post(
     val authorAvatar: String = "",
     val minutes: Int = 1,
     val html: String = "",
+    val video: Boolean = false,
+    val videoInfo: VideoInfo? = null,
 ) {
-    fun card() = PostCard(id, title, excerpt, date, image, category, link)
+    fun card() = PostCard(id, title, excerpt, date, image, category, link, video)
 }
 
 @Serializable

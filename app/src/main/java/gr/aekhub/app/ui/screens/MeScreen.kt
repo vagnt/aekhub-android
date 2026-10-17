@@ -46,6 +46,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.size
 import gr.aekhub.app.BuildConfig
 import gr.aekhub.app.LocalPrefs
 import gr.aekhub.app.data.Api
@@ -98,6 +100,7 @@ fun MeScreen(openPost: (Long) -> Unit) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 SectionLabel("ΤΜΗΜΑΤΑ ΠΟΥ ΑΚΟΛΟΥΘΩ")
+                Text("Ειδοποιήσεις αγώνων έρχονται μόνο για τα τμήματα που τσεκάρεις.", style = body(13, color = C.Muted))
                 Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(18.dp))) {
                     val list = config?.sports ?: emptyList()
                     list.forEachIndexed { idx, sp ->
@@ -110,7 +113,7 @@ fun MeScreen(openPost: (Long) -> Unit) {
                                 checked = on, onCheckedChange = { scope.launch { prefs.toggleSport(sp.key) } },
                                 colors = androidx.compose.material3.CheckboxDefaults.colors(checkedColor = C.Gold, checkmarkColor = C.Ink, uncheckedColor = C.Line2),
                             )
-                            Text(sp.name, style = body(15, if (on) FontWeight.ExtraBold else FontWeight.Bold, if (on) C.Text else C.Text2))
+                            Text(sportEmoji(sp.key) + "  " + sp.name, style = body(15, if (on) FontWeight.ExtraBold else FontWeight.Bold, if (on) C.Text else C.Text2))
                         }
                         if (idx < list.lastIndex) HorizontalDivider(Modifier.padding(start = 56.dp, end = 16.dp), thickness = 1.dp, color = C.Line)
                     }
@@ -119,17 +122,22 @@ fun MeScreen(openPost: (Long) -> Unit) {
         }
         item {
             Group("ΣΤΟΥΣ ΑΓΩΝΕΣ") {
-                Toggle("Γκολ / πόντοι-κλειδιά", "Με το σκορ, αμέσως", s.nGoals) { scope.launch { prefs.setFlag("goals", it) } }
-                Toggle("Έναρξη & λήξη", "Και ημίχρονο", s.nStartEnd) { scope.launch { prefs.setFlag("startEnd", it) } }
-                Toggle("Ενδεκάδα", "Μόλις ανακοινωθεί", s.nLineup) { scope.launch { prefs.setFlag("lineup", it) } }
-                Toggle("Κάρτες & αλλαγές", "Για όσους τα θέλουν όλα", s.nCards, last = true) { scope.launch { prefs.setFlag("cards", it) } }
+                Toggle("⚽", "Γκολ", "Κάθε γκολ της ΑΕΚ και του αντιπάλου, τη στιγμή που μπαίνει, με το νέο σκορ. Στο μπάσκετ και το βόλεϊ δεν χτυπάει σε κάθε πόντο.",
+                    "⚽ 🟡 ΓΚΟΛ! ΑΕΚ [1]-0 Ολυμπιακός — 23′", s.nGoals) { scope.launch { prefs.setFlag("goals", it) } }
+                Toggle("🏁", "Έναρξη, ημίχρονο & τελικό", "Πότε ξεκινά ο αγώνας, το ημίχρονο ή τα δεκάλεπτα/σετ και το τελικό αποτέλεσμα.",
+                    "⚽ 🏁 Τελικό · ΑΕΚ 2-0 Ολυμπιακός", s.nStartEnd) { scope.launch { prefs.setFlag("startEnd", it) } }
+                Toggle("📋", "Ενδεκάδα", "Η αρχική σύνθεση της ΑΕΚ μόλις ανακοινωθεί, περίπου μία ώρα πριν τη σέντρα.",
+                    "📋 Η ενδεκάδα της ΑΕΚ · ΑΕΚ - Ολυμπιακός", s.nLineup) { scope.launch { prefs.setFlag("lineup", it) } }
+                Toggle("🟨", "Κάρτες & αλλαγές", "Κίτρινες, κόκκινες, αλλαγές και αποβολές. Για όσους θέλουν να ξέρουν τα πάντα.",
+                    "🟨 Κίτρινη 37′ · ΑΕΚ", s.nCards, last = true) { scope.launch { prefs.setFlag("cards", it) } }
             }
         }
         item {
             Group("ΕΙΔΗΣΕΙΣ") {
-                Toggle("Έκτακτα", "Μεταγραφές, ανακοινώσεις", s.nBreaking) { scope.launch { prefs.setFlag("breaking", it) } }
-                Toggle("Ήσυχες ώρες", "01:00 – 08:00, εκτός από γκολ", s.nQuiet) { scope.launch { prefs.setFlag("quiet", it) } }
-                Toggle("Δοκιμαστικές ειδοποιήσεις", "Για συντάκτες: και από τους 🧪 δοκιμαστικούς αγώνες", s.nTest, last = true) { scope.launch { prefs.setFlag("test", it) } }
+                Toggle("⚡", "Έκτακτα", "Μεταγραφές, ανακοινώσεις και τα σημαντικά θέματα της ημέρας. Μόνο όσα αξίζει να μάθεις αμέσως.",
+                    "⚡ Ανακοίνωση: νέος προπονητής στην ΑΕΚ", s.nBreaking) { scope.launch { prefs.setFlag("breaking", it) } }
+                Toggle("🌙", "Ήσυχες ώρες", "Από 01:00 έως 08:00 το κινητό δεν χτυπάει. Εξαίρεση: τα γκολ.", null, s.nQuiet) { scope.launch { prefs.setFlag("quiet", it) } }
+                Toggle("🧪", "Δοκιμαστικές ειδοποιήσεις", "Για συντάκτες: λαμβάνεις και τις ειδοποιήσεις των δοκιμαστικών αγώνων. Το κοινό δεν τις βλέπει ποτέ.", null, s.nTest, last = true) { scope.launch { prefs.setFlag("test", it) } }
             }
         }
         item { SectionLabel("ΑΠΟΘΗΚΕΥΜΕΝΑ ΑΡΘΡΑ") }
@@ -162,13 +170,25 @@ private fun Group(title: String, content: @Composable () -> Unit) =
     }
 
 @Composable
-private fun Toggle(title: String, sub: String, on: Boolean, last: Boolean = false, set: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().clickable { set(!on) }.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(title, style = body(15, FontWeight.Bold))
-            Text(sub, style = body(12, color = C.Muted))
+private fun Toggle(icon: String, title: String, sub: String, example: String?, on: Boolean, last: Boolean = false, set: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable { set(!on) }.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(if (on) C.Gold.copy(alpha = 0.16f) else C.Panel2), contentAlignment = Alignment.Center) {
+            Text(icon, style = body(19))
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, style = body(15, FontWeight.ExtraBold, if (on) C.Text else C.Text2))
+            Text(sub, style = body(12, color = C.Muted).copy(lineHeight = 17.sp))
+            if (example != null) Text(
+                example, Modifier.padding(top = 4.dp).clip(RoundedCornerShape(8.dp)).background(C.Ink).border(1.dp, C.Line, RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 7.dp),
+                style = body(12, FontWeight.Bold, if (on) C.Text else C.Muted), maxLines = 2,
+            )
         }
         Switch(on, set, colors = SwitchDefaults.colors(checkedThumbColor = C.Ink, checkedTrackColor = C.Gold, uncheckedThumbColor = C.Muted, uncheckedTrackColor = C.Line2, uncheckedBorderColor = C.Line2))
     }
-    if (!last) HorizontalDivider(Modifier.padding(horizontal = 16.dp), thickness = 1.dp, color = C.Line)
+    if (!last) HorizontalDivider(Modifier.padding(start = 68.dp, end = 16.dp), thickness = 1.dp, color = C.Line)
+}
+
+private fun sportEmoji(k: String) = when (k) {
+    "football", "women_football" -> "⚽"; "basketball" -> "🏀"; "volleyball" -> "🏐"; "handball" -> "🤾"
+    "futsal" -> "🥅"; "waterpolo" -> "🤽"; else -> "🏅"
 }

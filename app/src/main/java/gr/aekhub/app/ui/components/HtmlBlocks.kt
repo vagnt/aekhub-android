@@ -58,7 +58,8 @@ sealed interface Block {
     data class Img(val url: String, val caption: String) : Block
     data class Quote(val text: AnnotatedString) : Block
     data class Bullets(val items: List<AnnotatedString>, val ordered: Boolean) : Block
-    data class Video(val youtubeId: String) : Block
+    data class Video(val embed: String, val thumb: String) : Block
+    data class Social(val kind: String, val url: String) : Block
     data class Embed(val url: String, val label: String) : Block
     data object Rule : Block
 }
@@ -83,6 +84,30 @@ object Html {
         return srcset?.takeIf { it.startsWith("http") } ?: cands.firstOrNull() ?: ""
     }
 
+    /** Link βίντεο → (embed για τον player, εικόνα). null αν δεν είναι βίντεο. */
+    private fun video(src: String, poster: String = ""): Block.Video? {
+        ytId(src)?.let { return Block.Video("https://www.youtube.com/embed/$it?autoplay=1&playsinline=1&rel=0&modestbranding=1", "https://i.ytimg.com/vi/$it/hqdefault.jpg") }
+        Regex("""vimeo\.com/(?:video/)?(\d+)""").find(src)?.let { return Block.Video("https://player.vimeo.com/video/${it.groupValues[1]}?autoplay=1", poster) }
+        Regex("""dailymotion\.com/(?:embed/)?video/([a-zA-Z0-9]+)|dai\.ly/([a-zA-Z0-9]+)""").find(src)?.let { m ->
+            val id = m.groupValues[1].ifBlank { m.groupValues[2] }
+            return Block.Video("https://www.dailymotion.com/embed/video/$id?autoplay=1", "https://www.dailymotion.com/thumbnail/video/$id")
+        }
+        if ("facebook.com/plugins/video" in src) return Block.Video(src, poster)
+        if (Regex("""(facebook\.com/.+/videos/|fb\.watch/)""").containsMatchIn(src)) return Block.Video("https://www.facebook.com/plugins/video.php?href=" + java.net.URLEncoder.encode(src, "UTF-8") + "&show_text=false&autoplay=true", poster)
+        if (Regex("""\.(mp4|webm|m4v|mov|m3u8)(\?|$)""", RegexOption.IGNORE_CASE).containsMatchIn(src)) return Block.Video(src, poster)
+        return null
+    }
+
+    /** Οποιοσδήποτε σύνδεσμος ενσωμάτωσης → το σωστό κομμάτι: βίντεο, social post ή κάρτα. */
+    private fun media(url: String, out: MutableList<Block>, poster: String = "") {
+        if (url.isBlank()) return
+        val sk = socialKind(url)
+        when {
+            sk != null && !("facebook" == sk && "/videos/" in url) -> out += Block.Social(sk, url)
+            else -> out += video(url, poster) ?: Block.Embed(url, embedLabel(url))
+        }
+    }
+
     private fun embedLabel(url: String) = when {
         "twitter.com" in url || "x.com" in url -> "Δες το post στο X"
         "instagram.com" in url -> "Δες το post στο Instagram"
@@ -97,6 +122,9 @@ object Html {
             "p" -> {
                 val imgs = e.select("img"); val ifr = e.selectFirst("iframe")
                 if (ifr != null) { iframe(ifr, out) }
+                // Σκέτο link βίντεο/post σε δική του γραμμή (όπως το «μετατρέπει» το WordPress)
+                val only = e.text().trim()
+                if (ifr == null && imgs.isEmpty() && only.startsWith("http") && ' ' !in only && (video(only) != null || socialKind(only) != null)) { media(only, out); return }
                 if (imgs.isNotEmpty() && e.text().isBlank()) { imgs.forEach { out += Block.Img(imgSrc(it), "") }; return }
                 out += Block.Para(inline(e))
             }
@@ -104,24 +132,27 @@ object Html {
             "img" -> out += Block.Img(imgSrc(e), "")
             "figure" -> {
                 val cap = e.selectFirst("figcaption")?.text() ?: ""
-                val ifr = e.selectFirst("iframe"); val bq = e.selectFirst("blockquote"); val img = e.selectFirst("img")
+                val ifr = e.selectFirst("iframe"); val bq = e.selectFirst("blockquote"); val img = e.selectFirst("img"); val vid = e.selectFirst("video")
                 when {
+                    vid != null -> videoTag(vid, out)
                     ifr != null -> iframe(ifr, out)
                     bq != null -> walk(bq, out)
-                    img != null -> out += Block.Img(imgSrc(img), cap)
+                    img != null && !e.hasClass("wp-block-embed") -> out += Block.Img(imgSrc(img), cap)
                     else -> {
                         // WordPress embed χωρίς iframe: το URL είναι σκέτο κείμενο μέσα στο wrapper
-                        val url = e.selectFirst("a[href]")?.absUrl("href") ?: e.text().trim().takeIf { it.startsWith("http") }
-                        if (url != null) { val y = ytId(url); out += if (y != null) Block.Video(y) else Block.Embed(url, embedLabel(url)) }
+                        val url = e.selectFirst(".wp-block-embed__wrapper")?.text()?.trim()?.takeIf { it.startsWith("http") }
+                            ?: e.selectFirst("a[href]")?.absUrl("href") ?: e.text().trim().takeIf { it.startsWith("http") }
+                        if (url != null) media(url, out)
                     }
                 }
             }
             "iframe" -> iframe(e, out)
+            "video" -> videoTag(e, out)
             "blockquote" -> {
                 val cls = e.className()
                 if ("twitter-tweet" in cls || "instagram-media" in cls || "tiktok-embed" in cls || e.hasAttr("data-instgrm-permalink")) {
                     val url = e.attr("data-instgrm-permalink").ifBlank { e.attr("cite") }.ifBlank { e.select("a[href]").lastOrNull()?.absUrl("href") ?: "" }
-                    if (url.isNotBlank()) out += Block.Embed(url, embedLabel(url))
+                    if (url.isNotBlank()) media(url.substringBefore("?utm"), out)
                 } else if (e.text().isNotBlank()) out += Block.Quote(inline(e))
             }
             "ul", "ol" -> {
@@ -146,9 +177,21 @@ object Html {
     }
 
     private fun iframe(e: Element, out: MutableList<Block>) {
-        val src = e.absUrl("src").ifBlank { e.absUrl("data-src") }
-        val y = ytId(src)
-        if (y != null) out += Block.Video(y) else if (src.isNotBlank()) out += Block.Embed(src, embedLabel(src))
+        val src = e.absUrl("src").ifBlank { e.absUrl("data-src") }.ifBlank { e.absUrl("data-lazy-src") }
+        if (src.isBlank()) return
+        // iframe ενσωμάτωσης social → το ίδιο το post
+        val ig = Regex("""instagram\.com/(p|reel|tv)/([^/?]+)""").find(src)
+        if (ig != null) { out += Block.Social("instagram", "https://www.instagram.com/${ig.groupValues[1]}/${ig.groupValues[2]}/"); return }
+        Regex("""tiktok\.com/embed(?:/v2)?/(\d+)""").find(src)?.let { out += Block.Social("tiktok", "https://www.tiktok.com/@/video/${it.groupValues[1]}"); return }
+        Regex("""[?&]id=(\d+)""").find(src)?.takeIf { "platform.twitter.com" in src }?.let { out += Block.Social("x", "https://twitter.com/i/status/${it.groupValues[1]}"); return }
+        if ("facebook.com/plugins/post" in src) Regex("""href=([^&]+)""").find(src)?.let { out += Block.Social("facebook", java.net.URLDecoder.decode(it.groupValues[1], "UTF-8")); return }
+        // κάθε άλλο iframe (βίντεο οποιουδήποτε παρόχου) παίζει μέσα στο app
+        out += video(src) ?: Block.Video(src, "")
+    }
+
+    private fun videoTag(e: Element, out: MutableList<Block>) {
+        val src = e.absUrl("src").ifBlank { e.selectFirst("source[src]")?.absUrl("src") ?: "" }
+        if (src.isNotBlank()) out += Block.Video(src, e.absUrl("poster"))
     }
 
     fun inline(root: Element): AnnotatedString = buildAnnotatedString {
@@ -179,14 +222,14 @@ fun BlockView(b: Block, scale: Float) {
     fun open(url: String) = runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
     val pad = Modifier.padding(horizontal = 20.dp)
     when (b) {
-        is Block.Para -> Text(b.text, pad, style = body((16 * scale).toInt(), color = C.Text2).copy(lineHeight = (16 * scale * 1.7f).sp))
-        is Block.Heading -> Text(b.text, pad.padding(top = 6.dp), style = if (b.level <= 2) disp((26 * scale).toInt()) else body((18 * scale).toInt(), FontWeight.ExtraBold), color = C.Text)
-        is Block.Quote -> Row(pad.padding(vertical = 4.dp).height(IntrinsicSize.Min)) {
-            Box(Modifier.width(3.dp).fillMaxHeight().background(C.Gold))
-            Text(
-                b.text, Modifier.padding(start = 14.dp),
-                style = disp((24 * scale).toInt(), FontWeight.Bold).copy(lineHeight = (24 * scale * 1.12f).sp), color = C.Text,
-            )
+        is Block.Para -> Text(b.text, pad, style = body((17 * scale).toInt(), color = C.Text.copy(alpha = 0.88f)).copy(lineHeight = (17 * scale * 1.72f).sp))
+        is Block.Heading -> Row(pad.padding(top = 10.dp).height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.width(4.dp).fillMaxHeight().clip(RoundedCornerShape(2.dp)).background(C.Gold))
+            Text(b.text.upperGr(), style = if (b.level <= 2) disp((26 * scale).toInt()) else disp((22 * scale).toInt()), color = C.Text)
+        }
+        is Block.Quote -> Column(pad.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(C.Panel).padding(18.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("“", style = disp(56, FontWeight.Black).copy(lineHeight = 40.sp), color = C.Gold)
+            Text(b.text, style = disp((23 * scale).toInt(), FontWeight.Bold).copy(lineHeight = (23 * scale * 1.15f).sp), color = C.Text)
         }
         is Block.Bullets -> Column(pad, verticalArrangement = Arrangement.spacedBy(8.dp)) {
             b.items.forEachIndexed { i, t ->
@@ -196,19 +239,12 @@ fun BlockView(b: Block, scale: Float) {
                 }
             }
         }
-        is Block.Img -> if (b.url.isNotBlank()) Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-            AsyncImage(b.url, null, Modifier.fillMaxWidth(), contentScale = ContentScale.FillWidth)
-            if (b.caption.isNotBlank()) Text(b.caption, pad.padding(top = 6.dp), style = body(12, color = C.Muted))
+        is Block.Img -> if (b.url.isNotBlank()) Column(pad.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            AsyncImage(b.url, null, Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(C.Panel), contentScale = ContentScale.FillWidth)
+            if (b.caption.isNotBlank()) Text(b.caption, style = body(12, color = C.Muted).copy(fontStyle = FontStyle.Italic))
         }
-        is Block.Video -> Box(
-            pad.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(14.dp)).clickable { open("https://www.youtube.com/watch?v=" + b.youtubeId) },
-            contentAlignment = Alignment.Center,
-        ) {
-            AsyncImage("https://img.youtube.com/vi/${b.youtubeId}/hqdefault.jpg", null, Modifier.fillMaxWidth().aspectRatio(16f / 9f), contentScale = ContentScale.Crop)
-            Box(Modifier.size(64.dp).clip(CircleShape).background(C.Gold), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.PlayArrow, "Αναπαραγωγή", tint = C.Ink, modifier = Modifier.size(38.dp))
-            }
-        }
+        is Block.Video -> InlineVideo(b.embed, b.thumb, pad)
+        is Block.Social -> SocialEmbed(b.url, b.kind, pad)
         is Block.Embed -> Row(
             pad.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(14.dp))
                 .clickable { open(b.url) }.padding(16.dp),

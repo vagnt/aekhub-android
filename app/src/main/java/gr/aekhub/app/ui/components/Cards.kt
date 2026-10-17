@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,6 +46,7 @@ fun FeaturedCard(p: PostCard, onClick: () -> Unit) {
     Box(Modifier.fillMaxWidth().height(300.dp).clip(RoundedCornerShape(20.dp)).background(C.Panel).clickable(onClick = onClick)) {
         if (p.image.isNotBlank()) AsyncImage(p.image, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.3f to Color.Transparent, 0.7f to C.Ink.copy(alpha = 0.92f), 1f to C.Ink)))
+        if (p.video) PlayBadge(Modifier.align(Alignment.TopEnd).padding(14.dp), 46.dp)
         Column(Modifier.align(Alignment.BottomStart).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (p.category.isNotBlank()) Tag(p.category)
             Text(p.title.upperGr(), style = disp(30).copy(lineHeight = 30.sp), color = C.Text, maxLines = 4, overflow = TextOverflow.Ellipsis)
@@ -58,6 +60,7 @@ fun PostRow(p: PostCard, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.width(112.dp).height(78.dp).clip(RoundedCornerShape(12.dp)).background(C.Panel2)) {
             if (p.image.isNotBlank()) AsyncImage(p.image, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            if (p.video) PlayBadge(Modifier.align(Alignment.Center), 30.dp)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             if (p.category.isNotBlank()) Text(p.category.upperGr(), style = body(11, FontWeight.ExtraBold, C.Gold).copy(letterSpacing = 0.5.sp))
@@ -106,6 +109,7 @@ fun PostCardMedium(p: PostCard, onClick: () -> Unit) {
     Column(Modifier.fillMaxWidth().clickable(onClick = onClick), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Box(Modifier.fillMaxWidth().height(190.dp).clip(RoundedCornerShape(16.dp)).background(C.Panel2)) {
             if (p.image.isNotBlank()) AsyncImage(p.image, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            if (p.video) PlayBadge(Modifier.align(Alignment.Center), 52.dp)
         }
         Text(p.title, style = body(18, FontWeight.ExtraBold).copy(lineHeight = 23.sp), maxLines = 3, overflow = TextOverflow.Ellipsis)
         Text(postDate(p.date, withYear = false), style = body(12, color = C.Muted))
@@ -158,3 +162,10 @@ fun LiveEventHero(title: String, image: String, onClick: () -> Unit) {
         }
     }
 }
+
+/** Σήμα ▶ πάνω στις κάρτες των video άρθρων. */
+@Composable
+fun PlayBadge(modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 40.dp) =
+    Box(modifier.size(size).clip(androidx.compose.foundation.shape.CircleShape).background(C.Gold), contentAlignment = Alignment.Center) {
+        Icon(androidx.compose.material.icons.Icons.Filled.PlayArrow, "Βίντεο", tint = C.Ink, modifier = Modifier.size(size * 0.62f))
+    }

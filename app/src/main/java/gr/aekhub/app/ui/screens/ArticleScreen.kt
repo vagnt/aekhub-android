@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -72,7 +74,7 @@ import kotlinx.coroutines.withContext
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-fun ArticleScreen(id: Long, back: () -> Unit) {
+fun ArticleScreen(id: Long, back: () -> Unit, openPost: (Long) -> Unit = {}) {
     val prefs = LocalPrefs.current
     val settings by prefs.settings.collectAsState(initial = Settings())
     var post by remember { mutableStateOf<Post?>(null) }
@@ -87,6 +89,9 @@ fun ArticleScreen(id: Long, back: () -> Unit) {
 
     var refreshing by remember { mutableStateOf(false) }
     var fresh by remember { mutableStateOf(false) }
+    var more by remember { mutableStateOf<List<gr.aekhub.app.data.PostCard>>(emptyList()) }
+    LaunchedEffect(id) { runCatching { more = Api.feed(null, 1).items.filter { it.id != id }.take(5) } }
+    val list = androidx.compose.foundation.lazy.rememberLazyListState()
     LaunchedEffect(id, key) {
         error = false
         // Αν το άρθρο έχει ξανανοίξει, φαίνεται αμέσως από την αποθήκευση
@@ -109,40 +114,77 @@ fun ArticleScreen(id: Long, back: () -> Unit) {
 
     Box(Modifier.fillMaxSize()) {
         androidx.compose.material3.pulltorefresh.PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; fresh = true; key++ }, modifier = Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 110.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(bottom = 110.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item(key = "hero") {
-                Box(Modifier.fillMaxWidth().height(280.dp).background(C.Panel)) {
+                val v = p.videoInfo
+                if (v != null && (v.embed.isNotBlank() || v.html.isNotBlank())) {
+                    // Video post: το βίντεο στην κορυφή, παίζει εδώ
+                    Column(Modifier.fillMaxWidth().background(Color.Black).padding(top = 64.dp)) {
+                        gr.aekhub.app.ui.components.InlineVideo(v.embed, v.thumb.ifBlank { p.image }, Modifier, v.html, "▶ ΔΕΣ ΤΟ ΒΙΝΤΕΟ")
+                    }
+                } else Box(Modifier.fillMaxWidth().height(320.dp).background(C.Panel)) {
                     if (p.image.isNotBlank()) AsyncImage(p.image, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to C.Ink.copy(alpha = 0.55f), 0.35f to Color.Transparent, 0.6f to Color.Transparent, 1f to C.Ink)))
+                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to C.Ink.copy(alpha = 0.6f), 0.3f to Color.Transparent, 0.55f to Color.Transparent, 1f to C.Ink)))
                 }
             }
             item(key = "head") {
-                Column(Modifier.offset(y = (-48).dp).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    if (p.category.isNotBlank()) Tag(p.category)
-                    Text(p.title.upperGr(), style = disp((36 * scale).toInt()).copy(lineHeight = (36 * scale * 0.98f).sp), color = C.Text)
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        if (p.authorAvatar.isNotBlank()) AsyncImage(p.authorAvatar, p.author, Modifier.size(42.dp).clip(CircleShape).background(C.Panel2), contentScale = ContentScale.Crop)
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            if (p.author.isNotBlank()) Text(p.author, style = body(14, FontWeight.ExtraBold))
-                            Text(postDate(p.date) + " · " + p.minutes + " λεπτά ανάγνωση", style = body(12, color = C.Muted))
+                val off = if (p.videoInfo != null) 0.dp else (-56).dp
+                Column(Modifier.offset(y = off).padding(horizontal = 20.dp).padding(top = if (p.videoInfo != null) 16.dp else 0.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (p.category.isNotBlank()) Tag(p.category)
+                        Text("⏱ " + p.minutes + "′ ανάγνωση", Modifier.clip(RoundedCornerShape(6.dp)).background(C.Panel2).padding(horizontal = 8.dp, vertical = 4.dp), style = body(11, FontWeight.ExtraBold, C.Text2))
+                    }
+                    Text(p.title.upperGr(), style = disp((34 * scale).toInt()).copy(lineHeight = (34 * scale * 1.0f).sp), color = C.Text)
+                    if (p.excerpt.isNotBlank()) Row(Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
+                        Box(Modifier.width(3.dp).fillMaxHeight().clip(RoundedCornerShape(2.dp)).background(C.Gold))
+                        Text(p.excerpt, Modifier.padding(start = 12.dp), style = body((17 * scale).toInt(), FontWeight.SemiBold, C.Text).copy(lineHeight = (17 * scale * 1.5f).sp))
+                    }
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(C.Panel).padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        if (p.authorAvatar.isNotBlank()) AsyncImage(p.authorAvatar, p.author, Modifier.size(46.dp).clip(CircleShape).background(C.Panel2), contentScale = ContentScale.Crop)
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(p.author.ifBlank { "AEK Hub" }, style = body(15, FontWeight.ExtraBold))
+                            Text(postDate(p.date), style = body(12, color = C.Muted))
+                        }
+                        Box(Modifier.size(40.dp).clip(CircleShape).background(C.Panel2).clickable { share() }, contentAlignment = Alignment.Center) {
+                            Icon(Icons.Filled.Share, "Κοινοποίηση", tint = C.Gold, modifier = Modifier.size(20.dp))
                         }
                     }
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(C.Line))
+                    if (p.imageCaption.isNotBlank() && p.videoInfo == null) Text("📷 " + p.imageCaption, style = body(11, color = C.Muted))
                 }
             }
             items(blocks.size) { i ->
-                Column(Modifier.offset(y = (-48).dp)) {
+                Column(Modifier.offset(y = if (p.videoInfo != null) 0.dp else (-40).dp)) {
                     BlockView(blocks[i], scale)
                     val a = ads
                     if (a != null && a.article && (i == 2 && blocks.size > 5 || i == blocks.size - 1)) BannerAd(a, medium = true, modifier = Modifier.padding(top = 16.dp))
                 }
             }
             if (socials.isNotEmpty()) item(key = "socials") {
-                Box(Modifier.offset(y = (-48).dp).padding(horizontal = 16.dp)) { SocialRow(socials, "Συζήτησέ το μαζί μας") }
+                Box(Modifier.padding(horizontal = 16.dp)) { SocialRow(socials, "Συζήτησέ το μαζί μας") }
+            }
+            if (more.isNotEmpty()) {
+                item(key = "moreh") {
+                    Row(Modifier.padding(horizontal = 16.dp).padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Box(Modifier.width(4.dp).height(22.dp).background(C.Gold))
+                        Text("ΔΙΑΒΑΣΕ ΕΠΙΣΗΣ", style = disp(22), color = C.Text)
+                    }
+                }
+                items(more, key = { "more" + it.id }) { c -> Box(Modifier.padding(horizontal = 16.dp)) { gr.aekhub.app.ui.components.PostRow(c) { openPost(c.id) } } }
             }
         }
         }
 
+        // Πρόοδος ανάγνωσης (χρυσή γραμμή πάνω-πάνω)
+        val prog by androidx.compose.runtime.remember { androidx.compose.runtime.derivedStateOf {
+            val total = list.layoutInfo.totalItemsCount.coerceAtLeast(1)
+            ((list.firstVisibleItemIndex + 1).toFloat() / total).coerceIn(0f, 1f)
+        } }
+        Box(Modifier.fillMaxWidth().height(3.dp).background(C.Line)) {
+            Box(Modifier.fillMaxWidth(prog).fillMaxHeight().background(C.Gold))
+        }
         // Πάνω κουμπιά
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             RoundBtn(Icons.AutoMirrored.Filled.ArrowBack, "Πίσω", C.Text, back)
@@ -160,8 +202,8 @@ fun ArticleScreen(id: Long, back: () -> Unit) {
 
         // Κάτω κουμπί κοινοποίησης
         Row(
-            Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(16.dp).fillMaxWidth().height(50.dp)
-                .clip(RoundedCornerShape(14.dp)).background(C.Gold).clickable { share() },
+            Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(16.dp).height(48.dp)
+                .clip(RoundedCornerShape(24.dp)).background(C.Gold).clickable { share() }.padding(horizontal = 18.dp),
             horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(Icons.Filled.Share, null, tint = C.Ink, modifier = Modifier.size(20.dp))

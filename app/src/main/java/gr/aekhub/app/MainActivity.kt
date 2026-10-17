@@ -217,7 +217,7 @@ private fun AppRoot(deep: MutableStateFlow<Deep?>) {
                 composable("me") { MeScreen(openPost) }
                 composable("search") { SearchScreen({ nav.popBackStack() }, openPost) }
                 composable("post/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) {
-                    ArticleScreen(it.arguments?.getLong("id") ?: 0L) { nav.popBackStack() }
+                    ArticleScreen(it.arguments?.getLong("id") ?: 0L, { nav.popBackStack() }, openPost)
                 }
                 composable("match/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) {
                     MatchScreen(it.arguments?.getLong("id") ?: 0L) { nav.popBackStack() }
