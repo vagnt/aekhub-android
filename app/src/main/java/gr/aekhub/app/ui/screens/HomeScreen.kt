@@ -86,13 +86,19 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
     var error by remember { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
     var live by remember { mutableStateOf<List<MatchCard>>(emptyList()) }
+    // Η αρχική του site δεν στέλνει ποδόσφαιρο στους «Επόμενους αγώνες»: τους παίρνουμε από τη λίστα αγώνων
+    var football by remember { mutableStateOf<List<MatchCard>>(emptyList()) }
     var heroLive by remember { mutableStateOf<MatchCard?>(null) }
     var key by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
 
+    fun takeMatches(all: List<MatchCard>) {
+        live = all.filter { it.live && it.aek.isNotEmpty() }
+        football = all.filter { it.sport == "football" && it.upcoming && it.aek.isNotEmpty() }
+    }
     suspend fun load(fresh: Boolean = false) {
         try { home = Api.home(fresh); error = false } catch (e: Exception) { if (home == null) error = true }
-        if (fresh) runCatching { live = Api.matches(fresh = true).items.filter { it.live && it.aek.isNotEmpty() } }
+        if (fresh) runCatching { takeMatches(Api.matches(fresh = true).items) }
     }
     LaunchedEffect(Unit) { runCatching { config = Api.config() } }
     LaunchedEffect(key) { load() }
@@ -107,7 +113,7 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
         }
     }
     LaunchedEffect(key) {
-        while (true) { runCatching { live = Api.matches().items.filter { it.live && it.aek.isNotEmpty() } }; delay(if (live.isNotEmpty()) 15_000 else 60_000) }
+        while (true) { runCatching { takeMatches(Api.matches().items) }; delay(if (live.isNotEmpty()) 15_000 else 60_000) }
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -147,10 +153,13 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
                         else -> h.featured?.let { f -> item(key = "feat") { FeaturedCard(f) { openPost(f.id) } } }
                     }
                     if (h.top.isNotEmpty()) {
-                        item(key = "toph") { GoldHeader("Τελευταία", Modifier.padding(top = 8.dp), "Ροή ειδήσεων", openFeed) }
+                        item(key = "toph") { GoldHeader("Τελευταία νέα", Modifier.padding(top = 8.dp), "Ροή ειδήσεων", openFeed) }
                         items(h.top, key = { "t" + it.id }) { p -> PostRow(p) { openPost(p.id) } }
                     }
-                    val upcoming = h.matches.filter { !it.live }
+                    // Ποδόσφαιρο: όσα πέφτουν μέσα στις μέρες της λίστας (τουλάχιστον το επόμενο), με σειρά ημερομηνίας
+                    val lastDay = h.matches.maxOfOrNull { it.date } ?: ""
+                    val fb = football.sortedBy { it.date + " " + it.time }.filterIndexed { i, m -> i == 0 || m.date <= lastDay }
+                    val upcoming = (h.matches + fb).distinctBy { it.id }.filter { !it.live }.sortedBy { it.date + " " + it.time }
                     if (upcoming.isNotEmpty()) {
                         item(key = "mh") { GoldHeader("Επόμενοι αγώνες", Modifier.padding(top = 10.dp), "Όλοι", openMatches) }
                         item(key = "mr") {

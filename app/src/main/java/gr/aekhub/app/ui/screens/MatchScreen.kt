@@ -184,9 +184,9 @@ fun MatchScreen(id: Long, back: () -> Unit) {
                 items(evs.size) { i -> TimelineRow(evs[i], d) }
             }
             else -> {
-                if (noCoverage) item(key = "noev") {
-                    val (t1, t2) = if (d.status == "finished") "Μόνο αποτέλεσμα" to "Ο αγώνας δεν καλύφθηκε live. Υπάρχει μόνο το τελικό αποτέλεσμα."
-                        else "Χωρίς live κάλυψη" to "Αυτός ο αγώνας δεν καλύπτεται live. Θα δεις εδώ το τελικό αποτέλεσμα."
+                // Μόνο για τελικό αποτέλεσμα: πριν τη σέντρα η «Πορεία» απλώς δεν έχει ξεκινήσει ακόμα
+                if (noCoverage && d.status == "finished") item(key = "noev") {
+                    val (t1, t2) = "Μόνο αποτέλεσμα" to "Ο αγώνας δεν καλύφθηκε live. Υπάρχει μόνο το τελικό αποτέλεσμα."
                     Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(16.dp)).padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         Box(Modifier.size(44.dp).clip(CircleShape).background(C.Panel3), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Info, null, tint = C.Gold) }
