@@ -93,7 +93,7 @@ fun StandingsScreen() {
         ) {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 28.dp)) {
                 item(key = "pb") { gr.aekhub.app.ads.PresentedBy("standings", Modifier.padding(bottom = 10.dp)) }
-                item(key = "t" + t.id) { Table(t) }
+                item(key = "t" + t.id) { StandingTable(t) }
             }
         }
     }
@@ -105,9 +105,10 @@ private fun LeagueTabs(items: List<Standing>, sel: Long, pick: (Long) -> Unit) {
     ChipRow(items.map { it.id.toString() to (it.league.ifBlank { it.title }) }, sel.toString(), { pick(it.toLong()) }, Modifier.padding(bottom = 6.dp))
 }
 
+/** Πίνακας βαθμολογίας (και μέσα στα άρθρα, από το shortcode του site). */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Table(s: Standing) {
+fun StandingTable(s: Standing) {
     val wdl = s.style != "wl"
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(C.Panel)) {
         Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {

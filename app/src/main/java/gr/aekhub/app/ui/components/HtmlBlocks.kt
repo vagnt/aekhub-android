@@ -43,6 +43,10 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import gr.aekhub.app.data.Standing
+import gr.aekhub.app.data.StandingRow
+import gr.aekhub.app.data.Zone
+import gr.aekhub.app.ui.screens.StandingTable
 import gr.aekhub.app.ui.theme.C
 import gr.aekhub.app.ui.theme.body
 import gr.aekhub.app.ui.theme.disp
@@ -61,6 +65,7 @@ sealed interface Block {
     data class Video(val embed: String, val thumb: String) : Block
     data class Social(val kind: String, val url: String) : Block
     data class Embed(val url: String, val label: String) : Block
+    data class Table(val standing: Standing) : Block
     data object Rule : Block
 }
 
@@ -170,6 +175,8 @@ object Html {
                 if (t.isNotBlank()) out += Block.Para(AnnotatedString(t))
             }
             else -> {
+                // Shortcode βαθμολογίας του site → ο ίδιος πίνακας με την οθόνη «Βαθμολογίες»
+                if (e.hasClass("aekstd-table-wrap")) { standing(e)?.let { out += Block.Table(it) }; return }
                 val dh = e.attr("data-href").ifBlank { e.attr("data-instgrm-permalink") }
                 if (dh.startsWith("http") && (socialKind(dh) != null || e.hasClass("fb-post") || e.hasClass("fb-video"))) { media(dh, out); return }
                 // Σκέτος σύνδεσμος σε social post/βίντεο, μόνος του μέσα σε div
@@ -184,6 +191,48 @@ object Html {
                 }
             }
         }
+    }
+
+    /** [aekhub_standings]: τίτλος, γραμμές με θέση/σήμα/αριθμούς ανά στήλη, χρώματα ζωνών και υπόμνημα. */
+    private fun standing(e: Element): Standing? {
+        val heads = e.select("thead th").map { it.text().trim() }
+        fun col(tr: Element, h: String) = heads.indexOf(h).takeIf { it >= 0 }?.let { tr.children().getOrNull(it)?.text()?.trim() } ?: ""
+        val zoneOf = mutableMapOf<Int, Pair<String, String>>()
+        val rows = e.select("tbody tr").mapNotNull { tr ->
+            val pos = tr.selectFirst(".aekstd-pos")?.text()?.trim()?.toIntOrNull() ?: return@mapNotNull null
+            val cell = tr.selectFirst("td.aekstd-th-pos")
+            Regex("""--z:\s*(#[0-9A-Fa-f]{3,8})""").find(cell?.attr("style") ?: "")?.let { zoneOf[pos] = it.groupValues[1] to cell!!.attr("title") }
+            val goals = col(tr, "Γκολ").split("-", ":").map { it.trim() }
+            StandingRow(
+                pos = pos, name = tr.selectFirst(".aekstd-team-name")?.text()?.trim() ?: "",
+                logo = tr.selectFirst("img.aekstd-logo")?.let { imgSrc(it) } ?: "",
+                played = col(tr, "Αγ"), won = col(tr, "Ν"), drawn = col(tr, "Ι"), lost = col(tr, "Η"),
+                gf = goals.getOrNull(0) ?: "", ga = goals.getOrNull(1) ?: "",
+                points = col(tr, "Β"), aek = tr.hasClass("aekstd-highlight"),
+            )
+        }
+        if (rows.isEmpty()) return null
+        // Υπόμνημα του site («1-4 Play-off τίτλου»). Αλλιώς οι ζώνες από τα χρώματα των γραμμών.
+        val legend = e.select(".aekstd-legend > span").mapNotNull { sp ->
+            val color = Regex("""background:\s*(#[0-9A-Fa-f]{3,8})""").find(sp.selectFirst("i")?.attr("style") ?: "")?.groupValues?.get(1) ?: return@mapNotNull null
+            val range = sp.selectFirst("b")?.text()?.split("-")?.mapNotNull { it.trim().toIntOrNull() } ?: return@mapNotNull null
+            val from = range.firstOrNull() ?: return@mapNotNull null
+            Zone(from, range.getOrElse(1) { from }, sp.ownText().trim(), color)
+        }
+        val zones = legend.ifEmpty {
+            zoneOf.toSortedMap().entries.fold(mutableListOf<Zone>()) { acc, (p, z) ->
+                val last = acc.lastOrNull()
+                if (last != null && last.color == z.first && last.label == z.second && last.to == p - 1) acc[acc.size - 1] = last.copy(to = p)
+                else acc += Zone(p, p, z.second, z.first)
+                acc
+            }
+        }
+        return Standing(
+            id = 0, title = e.selectFirst(".aekstd-title-txt")?.text()?.trim() ?: "",
+            style = if ("Ι" in heads) "wdl" else "wl",
+            leagueLogo = e.selectFirst("img.aekstd-title-logo")?.let { imgSrc(it) } ?: "",
+            zones = zones, rows = rows,
+        )
     }
 
     private fun iframe(e: Element, out: MutableList<Block>) {
@@ -263,6 +312,7 @@ fun BlockView(b: Block, scale: Float) {
             Icon(Icons.AutoMirrored.Filled.OpenInNew, null, tint = C.Gold)
             Text(b.label, style = body(15, FontWeight.Bold))
         }
+        is Block.Table -> Box(pad.fillMaxWidth()) { StandingTable(b.standing) }
         Block.Rule -> Box(pad.fillMaxWidth().height(1.dp).background(C.Line))
     }
 }
