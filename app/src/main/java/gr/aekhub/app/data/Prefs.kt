@@ -16,7 +16,7 @@ private val Context.store by preferencesDataStore("aekhub")
 
 data class Settings(
     val textScale: Float = 1f,
-    val sports: Set<String> = setOf("football", "basketball"),
+    val sports: Set<String> = Kinds.HOT.toSet(), // προεπιλογή: όλα τα «hot» αθλήματα ενεργά
     val nGoals: Boolean = true,
     val nStartEnd: Boolean = true,
     val nLineup: Boolean = true,
@@ -44,6 +44,8 @@ object Kinds {
     // Ενδεκάδες/πεντάδες: καμία ειδοποίηση (το ζήτησε ο χρήστης, 0.10.0)
     val ALL = listOf(GOALS, OPP, STARTEND, REMINDER, CARDS)
     val SPORTS = listOf("football", "basketball", "volleyball", "handball", "women_football", "futsal", "waterpolo")
+    /** Τα «hot» αθλήματα: ενεργά από την αρχή. */
+    val HOT = listOf("football", "women_football", "basketball", "volleyball", "handball")
     /** Αθλήματα χωρίς ειδοποίηση σε κάθε σκορ (μόνο φάσεις και τελικό). */
     val NO_GOALS = setOf("basketball", "handball")
 }
@@ -121,6 +123,12 @@ class Prefs(private val ctx: Context) {
         p[K.newsCats] = if (name in cur) cur - name else cur + name
     }
     suspend fun clearNewsCats() = ctx.store.edit { it[K.newsCats] = emptySet() }
+
+    /** «Επιλογή όλων» / «Αποεπιλογή όλων»: όλα τα αθλήματα με όλα τα είδη ειδοποίησης. */
+    suspend fun selectAllSports(all: Boolean, sports: List<String>) = ctx.store.edit { p ->
+        p[K.sports] = if (all) sports.toSet() else emptySet()
+        p[K.kinds] = if (all) sports.flatMap { sp -> Kinds.ALL.map { "$sp:$it" } }.toSet() else (p[K.kinds] ?: defaultKinds())
+    }
 
     suspend fun toggleSport(key: String) = ctx.store.edit { p ->
         val cur = p[K.sports] ?: Settings().sports
