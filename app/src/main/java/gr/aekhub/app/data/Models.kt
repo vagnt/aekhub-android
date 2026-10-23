@@ -226,7 +226,73 @@ data class MatchDetail(
     val stream: StreamInfo? = null,
     val highlights: List<Highlight> = emptyList(),
     val pitch: Pitch? = null,
+    /** Ανάλυση: διαβάζεται χωριστά (`ext`), ώστε ένα απρόσμενο πεδίο να μη χαλάει όλη την οθόνη του αγώνα */
+    val extra: kotlinx.serialization.json.JsonElement? = null,
+) {
+    val ext: MatchExtra? by lazy { extra?.let { runCatching { Api.json.decodeFromJsonElement(MatchExtra.serializer(), it) }.getOrNull() } }
+}
+
+/* ─────────── Ανάλυση αγώνα (Match Center 1.97: FotMob / Flashscore / Sofascore / αναγνώστες) ─────────── */
+
+@Serializable
+data class MatchExtra(
+    val resultOnly: Boolean = false,
+    val htScore: String = "",
+    val colorHome: String = "",
+    val colorAway: String = "",
+    val flow: Flow? = null,
+    val scorers: Scorers? = null,
+    val potm: Potm? = null,
+    val ratings: Ratings? = null,
+    val h2h: H2H? = null,
+    val momentum: Momentum? = null,
+    val shots: List<Shot>? = null,
+    val box: BoxScore? = null,
+    val predict: Predict? = null,
 )
+
+/** type "min": γκολ ανά λεπτό · type "per": σκορ ανά περίοδο/σετ */
+@Serializable
+data class Flow(
+    val type: String = "", val len: Int = 90, val now: Float = 0f, val goals: List<FlowGoal> = emptyList(),
+    val lead: HA = HA(), val max: HA = HA(), val sets: Boolean = false, val per: List<FlowPer> = emptyList(),
+)
+@Serializable data class HA(val h: Int = 0, val a: Int = 0)
+@Serializable data class FlowGoal(val minute: Float = 0f, val home: Int = 0, val away: Int = 0, val note: String = "")
+@Serializable data class FlowPer(val label: String = "", val h: Int = 0, val a: Int = 0)
+
+@Serializable data class Scorers(val home: List<ScorerRow> = emptyList(), val away: List<ScorerRow> = emptyList())
+@Serializable data class ScorerRow(val name: String = "", val goals: Int = 0)
+
+@Serializable data class Potm(val name: String = "", val number: String = "", val team: String = "", val side: String = "", val rating: String = "")
+@Serializable data class Ratings(val home: List<RatingRow> = emptyList(), val away: List<RatingRow> = emptyList())
+@Serializable data class RatingRow(val number: String = "", val name: String = "", val rating: Float = 0f)
+
+@Serializable
+data class H2H(
+    val src: String = "", val formHome: List<FormItem> = emptyList(), val formAway: List<FormItem> = emptyList(),
+    val meetings: List<Meeting> = emptyList(), val summary: List<Int> = emptyList(),
+)
+/** r: W/D/L · ha: h (εντός) / a (εκτός) · d: YYYY-MM-DD */
+@Serializable data class FormItem(val r: String = "", val opp: String = "", val sc: String = "", val ha: String = "", val d: String = "")
+@Serializable data class Meeting(val d: String = "", val home: String = "", val away: String = "", val sh: Int = 0, val sa: Int = 0, val comp: String = "", val pen: String = "")
+
+@Serializable data class Momentum(val periodLength: Int = 45, val periods: Int = 2, val points: List<MomentumPoint> = emptyList())
+@Serializable data class MomentumPoint(val minute: Float = 0f, val value: Int = 0)
+/** x/y 0–100, ο γηπεδούχος επιτίθεται δεξιά · result: goal/saved/miss/blocked/post */
+@Serializable
+data class Shot(val side: String = "home", val x: Float = 50f, val y: Float = 50f, val result: String = "miss", val minute: String = "", val player: String = "", val xg: Float = 0f, val penalty: Boolean = false)
+
+@Serializable data class BoxScore(val src: String = "", val home: List<BoxRow> = emptyList(), val away: List<BoxRow> = emptyList())
+@Serializable data class BoxRow(val number: String = "", val name: String = "", val min: Int = 0, val pts: Int = 0, val reb: Int = 0, val ast: Int = 0, val starter: Boolean = false)
+
+/** mode: score (ακριβές σκορ) / sets (βόλεϊ) / win (νικητής) */
+@Serializable
+data class Predict(
+    val mode: String = "score", val open: Boolean = false, val total: Int = 0, val top: List<PredictTop> = emptyList(),
+    val actual: String = "", val correctPct: Int? = null, val closesAt: Long = 0, val options: List<String> = emptyList(),
+)
+@Serializable data class PredictTop(val key: String = "", val votes: Int = 0, val pct: Int = 0, val label: String = "")
 
 @Serializable
 data class StreamInfo(val url: String, val embed: String = "", val thumb: String = "", val label: String = "", val kicker: String = "", val state: String = "pre")
@@ -238,6 +304,7 @@ data class Highlight(val title: String = "", val url: String, val embed: String 
 data class PitchPlayer(
     val number: String = "", val name: String = "", val x: Float = 50f, val y: Float = 50f,
     val goals: Int = 0, val yellow: Boolean = false, val red: Boolean = false, val out: String = "", val `in`: String = "",
+    val rating: Float = 0f,
 )
 
 @Serializable
