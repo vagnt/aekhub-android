@@ -90,7 +90,12 @@ object Notifs {
         val id = d["match"]?.toLongOrNull() ?: 0L
         val test = (d["title"] ?: "").startsWith("[Δοκιμή]")
 
-        if (kind == "breaking") { if (s.nBreaking) news(ctx, d); return }
+        if (kind == "lineup") return // ενδεκάδες/πεντάδες: καμία ειδοποίηση (και αν έρθει από παλιότερο server)
+        if (kind == "breaking") {
+            val cat = d["cat"].orEmpty()
+            if (s.nBreaking && (s.newsCats.isEmpty() || cat.isBlank() || cat in s.newsCats)) news(ctx, d)
+            return
+        }
         if (id > 0 && id.toString() in s.mutedMatches) { cancelMatch(ctx, id); return }
 
         val sport = d["sport"] ?: "football"
@@ -123,7 +128,6 @@ object Notifs {
                 else -> event(ctx, d, sp, CH_MATCH, SLOT_EVENT) // ημίχρονο, δεκάλεπτα: κανονική ειδοποίηση
             }
             "cards" -> event(ctx, d, sp, CH_QUIET, SLOT_EVENT)
-            "lineup" -> lineup(ctx, d)
             "reminder" -> reminder(ctx, d)
         }
     }

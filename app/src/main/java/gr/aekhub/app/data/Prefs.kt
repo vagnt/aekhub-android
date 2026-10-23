@@ -22,6 +22,8 @@ data class Settings(
     val nLineup: Boolean = true,
     val nCards: Boolean = false,
     val nBreaking: Boolean = true,
+    /** Έκτακτα μόνο από αυτές τις κατηγορίες (ονόματα)· άδειο = όλες. */
+    val newsCats: Set<String> = emptySet(),
     val nQuiet: Boolean = false,
     val nTest: Boolean = false,
     /** Γενικός διακόπτης: κλειστός = καμία ειδοποίηση από το AEK Hub. */
@@ -38,18 +40,19 @@ data class Settings(
 /** Τα είδη ειδοποίησης ανά άθλημα (ίδια ονόματα με τα θέματα m_<άθλημα>_<είδος> του server, εκτός από το "opp"). */
 object Kinds {
     const val LIVE = "live"; const val GOALS = "goals"; const val OPP = "opp"; const val STARTEND = "startend"
-    const val LINEUP = "lineup"; const val CARDS = "cards"; const val REMINDER = "reminder"
-    val ALL = listOf(GOALS, OPP, STARTEND, LINEUP, REMINDER, CARDS)
+    const val CARDS = "cards"; const val REMINDER = "reminder"
+    // Ενδεκάδες/πεντάδες: καμία ειδοποίηση (το ζήτησε ο χρήστης, 0.10.0)
+    val ALL = listOf(GOALS, OPP, STARTEND, REMINDER, CARDS)
     val SPORTS = listOf("football", "basketball", "volleyball", "handball", "women_football", "futsal", "waterpolo")
     /** Αθλήματα χωρίς ειδοποίηση σε κάθε σκορ (μόνο φάσεις και τελικό). */
     val NO_GOALS = setOf("basketball", "handball")
 }
-fun defaultKinds(goals: Boolean = true, startEnd: Boolean = true, lineup: Boolean = true, cards: Boolean = false): Set<String> = buildSet {
+@Suppress("UNUSED_PARAMETER")
+fun defaultKinds(goals: Boolean = true, startEnd: Boolean = true, lineup: Boolean = false, cards: Boolean = false): Set<String> = buildSet {
     Kinds.SPORTS.forEach { sp ->
         add("$sp:${Kinds.REMINDER}")
         if (goals) { add("$sp:${Kinds.GOALS}"); add("$sp:${Kinds.OPP}") }
         if (startEnd) add("$sp:${Kinds.STARTEND}")
-        if (lineup) add("$sp:${Kinds.LINEUP}")
         if (cards) add("$sp:${Kinds.CARDS}")
     }
 }
@@ -74,6 +77,7 @@ class Prefs(private val ctx: Context) {
         val lineup = booleanPreferencesKey("n_lineup")
         val cards = booleanPreferencesKey("n_cards")
         val breaking = booleanPreferencesKey("n_breaking")
+        val newsCats = stringSetPreferencesKey("news_cats")
         val quiet = booleanPreferencesKey("n_quiet")
         val test = booleanPreferencesKey("n_test")
         val all = booleanPreferencesKey("n_all")
@@ -96,6 +100,7 @@ class Prefs(private val ctx: Context) {
             nLineup = p[K.lineup] ?: d.nLineup,
             nCards = p[K.cards] ?: d.nCards,
             nBreaking = p[K.breaking] ?: d.nBreaking,
+            newsCats = p[K.newsCats] ?: d.newsCats,
             nQuiet = p[K.quiet] ?: d.nQuiet,
             nTest = p[K.test] ?: d.nTest,
             nAll = p[K.all] ?: d.nAll,
@@ -109,6 +114,13 @@ class Prefs(private val ctx: Context) {
     }
 
     suspend fun setScale(v: Float) = ctx.store.edit { it[K.scale] = v.coerceIn(0.85f, 1.4f) }
+
+    /** Κατηγορία ειδήσεων για τα έκτακτα (καμία επιλεγμένη = όλες). */
+    suspend fun toggleNewsCat(name: String) = ctx.store.edit { p ->
+        val cur = p[K.newsCats] ?: emptySet()
+        p[K.newsCats] = if (name in cur) cur - name else cur + name
+    }
+    suspend fun clearNewsCats() = ctx.store.edit { it[K.newsCats] = emptySet() }
 
     suspend fun toggleSport(key: String) = ctx.store.edit { p ->
         val cur = p[K.sports] ?: Settings().sports

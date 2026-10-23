@@ -139,7 +139,16 @@ fun MeScreen(openPost: (Long) -> Unit) {
             item {
                 Group("ΕΙΔΗΣΕΙΣ") {
                     Toggle(Icons.Filled.Bolt, "Έκτακτα", "Μεταγραφές, ανακοινώσεις και τα σημαντικά θέματα της ημέρας, με ετικέτα όπως «ΕΠΙΣΗΜΟ».",
-                        "ΕΠΙΣΗΜΟ · Ανακοίνωση της ΠΑΕ ΑΕΚ", s.nBreaking, last = true) { scope.launch { prefs.setFlag("breaking", it) } }
+                        "ΕΠΙΣΗΜΟ · Ανακοίνωση της ΠΑΕ ΑΕΚ", s.nBreaking, last = !(s.nBreaking && !config?.categories.isNullOrEmpty())) { scope.launch { prefs.setFlag("breaking", it) } }
+                    // Ανά κατηγορία: καμία επιλεγμένη = όλες
+                    val cats = config?.categories.orEmpty()
+                    if (s.nBreaking && cats.isNotEmpty()) Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(if (s.newsCats.isEmpty()) "Από όλες τις κατηγορίες. Πάτα για να διαλέξεις μόνο κάποιες." else "Μόνο από: " + s.newsCats.joinToString(", "), style = body(12, color = C.Muted).copy(lineHeight = 17.sp))
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            NewsChip("Όλες", s.newsCats.isEmpty()) { scope.launch { prefs.clearNewsCats() } }
+                            cats.forEach { c -> NewsChip(c.name, c.name in s.newsCats) { scope.launch { prefs.toggleNewsCat(c.name) } } }
+                        }
+                    }
                 }
             }
             item {
@@ -212,6 +221,12 @@ fun MeScreen(openPost: (Long) -> Unit) {
 }
 
 @Composable
+private fun NewsChip(text: String, on: Boolean, onClick: () -> Unit) = Text(
+    text, Modifier.clip(RoundedCornerShape(99.dp)).background(if (on) C.Gold else C.Panel2).border(1.dp, if (on) C.Gold else C.Line2, RoundedCornerShape(99.dp)).clickable(onClick = onClick).padding(horizontal = 13.dp, vertical = 7.dp),
+    style = body(13, FontWeight.ExtraBold, if (on) C.Ink else C.Text2),
+)
+
+@Composable
 private fun Group(title: String, content: @Composable () -> Unit) =
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(18.dp))) {
         SectionLabel(title, Modifier.padding(start = 16.dp, top = 14.dp, bottom = 4.dp))
@@ -263,8 +278,6 @@ private fun kindRows(sp: String): List<KindRow> = buildList {
     }
     add(KindRow(Kinds.STARTEND, when (sp) { "basketball" -> "Τζάμπολ, δεκάλεπτα, τελικό"; "volleyball" -> "Έναρξη, κάθε σετ, τελικό"; "waterpolo" -> "Έναρξη, περίοδοι, τελικό"; else -> "Σέντρα, ημίχρονο, τελικό" },
         "Το τελικό έρχεται με σκόρερ και κουμπί για στιγμιότυπα και βαθμολογία.", Icons.Filled.Flag))
-    add(KindRow(Kinds.LINEUP, when (sp) { "basketball" -> "Αρχική πεντάδα"; "volleyball" -> "Αρχική εξάδα"; "football", "women_football" -> "Ενδεκάδα"; else -> "Αρχική σύνθεση" },
-        "Μόλις ανακοινωθεί.", Icons.Filled.Groups))
     add(KindRow(Kinds.REMINDER, "Υπενθύμιση 30′ πριν", "Με την ώρα, το γήπεδο και πού μεταδίδεται.", Icons.Filled.Alarm))
     add(KindRow(Kinds.CARDS, when (sp) { "basketball" -> "Τεχνικές ποινές και αποβολές"; "handball", "waterpolo" -> "Αποβολές"; "volleyball" -> "Αλλαγές"; else -> "Κάρτες και αλλαγές" },
         "Για όσους θέλουν να ξέρουν τα πάντα.", Icons.Filled.Style))
