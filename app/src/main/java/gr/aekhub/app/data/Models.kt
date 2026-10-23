@@ -290,9 +290,14 @@ data class Pitch(
 @Serializable
 data class Section(val slug: String, val name: String, val icon: String = "eagle", val items: List<PostCard> = emptyList())
 
+/** 🚨 Έκτακτο: κόκκινη λωρίδα πάνω στην αρχική (από το Κέντρο Ελέγχου του site). */
+@Serializable
+data class Breaking(val text: String = "", val url: String = "", val label: String = "ΕΚΤΑΚΤΟ", val id: String = "")
+
 @Serializable
 data class HomeData(
     val liveHero: LiveHero? = null,
+    val breaking: Breaking? = null,
     val socials: List<Social> = emptyList(),
     val featured: PostCard? = null,
     val top: List<PostCard> = emptyList(),
