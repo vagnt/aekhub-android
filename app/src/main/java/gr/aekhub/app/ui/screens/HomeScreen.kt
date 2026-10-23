@@ -44,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -130,6 +131,21 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
                 h == null && error -> ErrorBox { key++ }
                 h == null -> Loading()
                 else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    h.breaking?.takeIf { it.text.isNotBlank() }?.let { b ->
+                        item(key = "breaking") {
+                            val uri = LocalUriHandler.current
+                            Row(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(C.Live)
+                                    .clickable(enabled = b.url.isNotBlank()) { runCatching { uri.openUri(b.url) } }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text("🚨 " + b.label, fontWeight = FontWeight.ExtraBold, color = C.Text)
+                                Text(b.text, fontWeight = FontWeight.SemiBold, color = C.Text)
+                            }
+                        }
+                    }
                     if (h.socials.isNotEmpty()) item(key = "soctop") { SocialStrip(h.socials) }
                     // Μενού κατηγοριών (πλακίδια με τα εικονίδια του site)
                     val cats = config?.categories ?: emptyList()
