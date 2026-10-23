@@ -274,8 +274,8 @@ data class H2H(
     val meetings: List<Meeting> = emptyList(), val summary: List<Int> = emptyList(),
 )
 /** r: W/D/L · ha: h (εντός) / a (εκτός) · d: YYYY-MM-DD */
-@Serializable data class FormItem(val r: String = "", val opp: String = "", val sc: String = "", val ha: String = "", val d: String = "")
-@Serializable data class Meeting(val d: String = "", val home: String = "", val away: String = "", val sh: Int = 0, val sa: Int = 0, val comp: String = "", val pen: String = "")
+@Serializable data class FormItem(val r: String = "", val opp: String = "", val sc: String = "", val ha: String = "", val d: String = "", val comp: String = "", val logo: String = "")
+@Serializable data class Meeting(val d: String = "", val home: String = "", val away: String = "", val sh: Int = 0, val sa: Int = 0, val comp: String = "", val pen: String = "", val hl: String = "", val al: String = "")
 
 @Serializable data class Momentum(val periodLength: Int = 45, val periods: Int = 2, val points: List<MomentumPoint> = emptyList())
 @Serializable data class MomentumPoint(val minute: Float = 0f, val value: Int = 0)
