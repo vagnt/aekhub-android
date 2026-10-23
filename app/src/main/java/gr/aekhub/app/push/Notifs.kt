@@ -83,10 +83,11 @@ object Notifs {
 
     /* ───────── Είσοδος: ένα μήνυμα από τον server ───────── */
     fun handle(ctx: Context, d: Map<String, String>, s: Settings) {
-        if (!s.nAll) return // γενικός διακόπτης
         if (!Push.allowed(ctx)) return
         channels(ctx)
         val kind = d["kind"] ?: "breaking"
+        if (kind == "test") { news(ctx, d); return } // δοκιμή από «Εγώ» → περνά πάντα (και με τον γενικό διακόπτη κλειστό)
+        if (!s.nAll) return // γενικός διακόπτης
         val id = d["match"]?.toLongOrNull() ?: 0L
         val test = (d["title"] ?: "").startsWith("[Δοκιμή]")
 

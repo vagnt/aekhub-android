@@ -62,26 +62,23 @@ import java.util.Locale
 
 /*
  * 📊 Ανάλυση αγώνα — ίδια εμφάνιση με το site (Match Center 1.100): τίτλος ενότητας + πάνελ με κεφαλίδα ομάδας.
- * Διακριθέντες ανά ομάδα (βαθμοί), πίεση, χάρτης σουτ, μπάσκετ box score.
+ * Βαθμολογία παικτών ανά ομάδα, μπάσκετ box score.
  * Τα ονόματα παικτών έρχονται ήδη από τον server όπως είναι στη σύνθεση του αγώνα.
  */
 
 /** Υπάρχει κάτι να δείξει η καρτέλα «Ανάλυση»; */
-fun MatchExtra.hasAnalysis(): Boolean = !resultOnly && (!ratings?.home.isNullOrEmpty() || !ratings?.away.isNullOrEmpty() || box != null || momentum != null || !shots.isNullOrEmpty())
+fun MatchExtra.hasAnalysis(): Boolean = !resultOnly && (!ratings?.home.isNullOrEmpty() || !ratings?.away.isNullOrEmpty() || box != null)
 
 private class Cols(val h: Color, val a: Color)
 private val W = Color(0xFF22C38E); private val D = Color(0xFF9A968A); private val L = Color(0xFFF0525A)
 private fun src(k: String) = when (k) { "fm" -> "FotMob"; "fs" -> "Flashscore"; "ss" -> "Sofascore"; "as" -> "API-Sports"; "db" -> "AEK Hub"; else -> "" }
 private fun f1(v: Float) = String.format(Locale.US, "%.1f", v)
-private fun f2(v: Double) = String.format(Locale.US, "%.2f", v)
 
 @Composable
 fun AnalysisView(d: MatchDetail, x: MatchExtra) {
     val cols = Cols(hex(x.colorHome, C.Gold), hex(x.colorAway, C.Text2))
     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         x.ratings?.let { r -> TopCard(d, true, r.home, x.potm, cols); TopCard(d, false, r.away, x.potm, cols) }
-        x.momentum?.takeIf { it.points.isNotEmpty() }?.let { MomentumCard(d, it, cols) }
-        x.shots?.takeIf { it.isNotEmpty() }?.let { ShotsCard(d, it, cols) }
         x.box?.let { BoxCard(d, it, cols) }
     }
 }
@@ -135,154 +132,51 @@ private fun TeamHead(logo: String, name: String, c: Color, end: Boolean = false,
 
 /** Κεφαλίδα με τις δύο ομάδες (πίεση, σουτ) */
 @Composable
-private fun VsHead(d: MatchDetail, cols: Cols) = Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-    TeamHead(d.homeLogo, d.home, cols.h, false, Modifier.weight(1f))
-    TeamHead(d.awayLogo, d.away, cols.a, true, Modifier.weight(1f).padding(start = 0.dp))
-}
-
-@Composable
 private fun ChartBox(content: @Composable () -> Unit) = Column(
     Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(C.Ink2).border(1.dp, C.Line, RoundedCornerShape(10.dp)).padding(10.dp),
 ) { content() }
-
-@Composable
-private fun Ticks(vararg t: String) = Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-    t.forEachIndexed { i, s -> if (i > 0) Spacer(Modifier.weight(1f)); Text(s, style = body(11, color = C.Muted)) }
-}
 
 fun ratingColor(r: Float): Color = when {
     r >= 8f -> Color(0xFF3D9BFF); r >= 7f -> Color(0xFF22C38E); r >= 6f -> Color(0xFFF2C230); else -> Color(0xFFF0703A)
 }
 
 @Composable
-fun RatingBadge(r: Float, big: Boolean = false) = Box(
-    Modifier.clip(RoundedCornerShape(if (big) 10.dp else 6.dp)).background(ratingColor(r)).padding(horizontal = if (big) 10.dp else 6.dp, vertical = if (big) 5.dp else 1.dp),
+fun RatingBadge(r: Float, big: Boolean = false, best: Boolean = false) = Box(
+    Modifier.clip(RoundedCornerShape(99.dp)).background(if (best) C.Gold else Color(0xFF0B0B0A)).border(1.5.dp, if (best) C.Gold else ratingColor(r), RoundedCornerShape(99.dp))
+        .padding(horizontal = if (big) 12.dp else 8.dp, vertical = if (big) 5.dp else 2.dp),
     contentAlignment = Alignment.Center,
-) { Text(f1(r), style = body(if (big) 18 else 11, FontWeight.ExtraBold, if (r >= 8f) Color.White else C.Ink)) }
+) { Text(f1(r), style = body(if (big) 18 else 12, FontWeight.ExtraBold, if (best) C.Ink else ratingColor(r))) }
 
-/* ─────────── ⭐ Διακριθέντες: ξεχωριστό πάνελ για κάθε ομάδα ─────────── */
+/* ─────────── Βαθμολογία παικτών: ξεχωριστό πάνελ για κάθε ομάδα (5 πρώτοι, οι υπόλοιποι με πάτημα) ─────────── */
 
 @Composable
 private fun TopCard(d: MatchDetail, home: Boolean, list: List<gr.aekhub.app.data.RatingRow>, potm: gr.aekhub.app.data.Potm?, cols: Cols) {
-    val l = list.filter { it.name.isNotBlank() }.take(5)
+    val l = list.filter { it.name.isNotBlank() }
     if (l.isEmpty()) return
     val side = if (home) "home" else "away"
-    Section(if (home) "Διακριθέντες" else "", head = { TeamHead(if (home) d.homeLogo else d.awayLogo, if (home) d.home else d.away, if (home) cols.h else cols.a) }) {
+    var all by remember { mutableStateOf(false) }
+    Section(if (home) "Βαθμολογία παικτών" else "", head = { TeamHead(if (home) d.homeLogo else d.awayLogo, if (home) d.home else d.away, if (home) cols.h else cols.a) }) {
         Column {
-            l.forEachIndexed { i, r ->
+            val shown = if (all) l else l.take(5)
+            shown.forEachIndexed { i, r ->
                 val best = potm != null && potm.side == side && potm.number == r.number
                 Row(Modifier.fillMaxWidth().then(if (best) Modifier.background(C.Gold.copy(alpha = 0.10f)) else Modifier).padding(vertical = 9.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(if (best) "⭐" else "${i + 1}", Modifier.width(24.dp), style = disp(19, FontWeight.Black), color = C.Gold, textAlign = TextAlign.Center)
-                    Text(r.name, Modifier.weight(1f, false), style = body(14, if (best) FontWeight.ExtraBold else FontWeight.SemiBold, if (best) C.Text else C.Text2), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (r.number.isNotBlank()) Text("#${r.number}", style = body(11, FontWeight.Bold, C.Muted))
-                    Spacer(Modifier.weight(1f))
-                    Box(Modifier.width(54.dp).height(6.dp).clip(RoundedCornerShape(99.dp)).background(C.Ink2)) {
-                        Box(Modifier.fillMaxHeight().fillMaxWidth((r.rating / 10f).coerceIn(0.05f, 1f)).clip(RoundedCornerShape(99.dp)).background(ratingColor(r.rating)))
+                    Text("${i + 1}", Modifier.width(24.dp), style = disp(19, FontWeight.Black), color = C.Gold, textAlign = TextAlign.Center)
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(r.name, Modifier.weight(1f, false), style = body(14, if (best) FontWeight.ExtraBold else FontWeight.SemiBold, if (best) C.Text else C.Text2), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            if (r.number.isNotBlank()) Text("#${r.number}", style = body(11, FontWeight.Bold, C.Muted))
+                        }
+                        if (best) Text("ΠΑΙΚΤΗΣ ΑΓΩΝΑ", style = body(9, FontWeight.Black, C.Gold))
                     }
-                    RatingBadge(r.rating)
+                    RatingBadge(r.rating, best = best)
                 }
-                if (i < l.lastIndex) DashLine(Modifier.fillMaxWidth())
+                if (i < shown.lastIndex) DashLine(Modifier.fillMaxWidth())
             }
-        }
-        if (potm != null && potm.side == side) Note("⭐ Παίκτης του αγώνα")
-    }
-}
-
-/* ─────────── 🔥 Πίεση αγώνα ─────────── */
-
-@Composable
-private fun MomentumCard(d: MatchDetail, m: gr.aekhub.app.data.Momentum, cols: Cols) = Section("Πίεση αγώνα", head = { VsHead(d, cols) }) {
-    val total = (m.periodLength * m.periods).coerceAtLeast(1).toFloat()
-    val maxMin = maxOf(total, m.points.maxOf { it.minute })
-    ChartBox {
-        Canvas(Modifier.fillMaxWidth().height(112.dp)) {
-            val mid = size.height / 2f
-            val bw = (size.width / maxMin * 0.82f).coerceAtLeast(1.5f)
-            for (k in 1 until m.periods) {
-                val xx = size.width * (m.periodLength * k) / maxMin
-                drawLine(C.Muted.copy(alpha = 0.6f), Offset(xx, 0f), Offset(xx, size.height), 1f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f)))
-            }
-            m.points.forEach { p ->
-                val xx = size.width * (p.minute - 1).coerceAtLeast(0f) / maxMin
-                val hgt = (p.value.coerceIn(-100, 100) / 100f) * (mid - 4f)
-                if (hgt > 0) drawRoundRect(cols.h, Offset(xx, mid - hgt), Size(bw, hgt), CornerRadius(2f))
-                else if (hgt < 0) drawRoundRect(cols.a, Offset(xx, mid), Size(bw, -hgt), CornerRadius(2f))
-            }
-            drawLine(C.Line2, Offset(0f, mid), Offset(size.width, mid), 1f)
-        }
-        Ticks("0′", "${m.periodLength}′", "${total.toInt()}′")
-    }
-    Note("Πάνω: πιέζει η ${d.home} · κάτω: η ${d.away}")
-}
-
-/* ─────────── 🎯 Χάρτης σουτ (γηπεδούχος επιτίθεται δεξιά) ─────────── */
-
-@Composable
-private fun ShotsCard(d: MatchDetail, shots: List<gr.aekhub.app.data.Shot>, cols: Cols) = Section("Χάρτης σουτ", head = { VsHead(d, cols) }) {
-    Row { Text("← επιτίθεται η ${d.away}", style = body(10, FontWeight.Bold, C.Muted)); Spacer(Modifier.weight(1f)); Text("επιτίθεται η ${d.home} →", style = body(10, FontWeight.Bold, C.Muted)) }
-    var sel by remember(shots) { mutableStateOf<gr.aekhub.app.data.Shot?>(null) }
-    val line = Color.White.copy(alpha = 0.5f)
-    Box(Modifier.fillMaxWidth().aspectRatio(105f / 68f).clip(RoundedCornerShape(12.dp)).background(Color(0xFF1D3A24))) {
-        Canvas(Modifier.matchParentSize()) {
-            val w = size.width; val h = size.height; val st = Stroke(1.5f)
-            for (i in 1 until 10 step 2) drawRect(Color(0xFF214229), Offset(w * i / 10f, 0f), Size(w / 10f, h)) // ρίγες χλοοτάπητα
-            drawRect(line, Offset(3f, 3f), Size(w - 6f, h - 6f), style = st)
-            drawLine(line, Offset(w / 2, 3f), Offset(w / 2, h - 3f), 1.5f)
-            drawCircle(line, h * 0.135f, Offset(w / 2, h / 2), style = st)
-            val pbW = w * 16.5f / 105f; val pbH = h * 40.3f / 68f; val gaW = w * 5.5f / 105f; val gaH = h * 18.3f / 68f
-            drawRect(line, Offset(3f, (h - pbH) / 2), Size(pbW, pbH), style = st); drawRect(line, Offset(w - 3f - pbW, (h - pbH) / 2), Size(pbW, pbH), style = st)
-            drawRect(line, Offset(3f, (h - gaH) / 2), Size(gaW, gaH), style = st); drawRect(line, Offset(w - 3f - gaW, (h - gaH) / 2), Size(gaW, gaH), style = st)
-            shots.forEach { s ->
-                val c = if (s.side == "home") cols.h else cols.a
-                val r = (4f + s.xg.coerceIn(0f, 1f) * 14f) * density / 2.2f
-                val o = Offset(w * s.x / 100f, h * s.y / 100f)
-                when (s.result) {
-                    "goal" -> { drawCircle(Color.White, r * 1.3f, o); drawCircle(C.Gold, r * 1.3f, o, style = Stroke(3f)) }
-                    "saved", "post" -> drawCircle(c, r, o)
-                    "blocked" -> drawCircle(c.copy(alpha = 0.4f), r, o)
-                    else -> drawCircle(c, r, o, style = Stroke(2.5f))
-                }
-                if (s == sel) drawCircle(Color.White, r * 2f, o, style = Stroke(2f))
-            }
-        }
-        Box(Modifier.matchParentSize().pointerInput(shots) {
-            detectTapGestures { o ->
-                val fx = o.x / size.width * 100f; val fy = o.y / size.height * 100f
-                sel = shots.minByOrNull { (it.x - fx) * (it.x - fx) + (it.y - fy) * (it.y - fy) }
-            }
-        })
-    }
-    val info = sel?.let { s ->
-        val res = mapOf("goal" to "⚽ Γκολ", "saved" to "Στην εστία", "miss" to "Άουτ", "blocked" to "Μπλοκ", "post" to "Δοκάρι")[s.result] ?: s.result
-        "${s.minute}′ · ${s.player.ifBlank { "—" }} · $res" + (if (s.penalty) " (πέν.)" else "") + (if (s.xg > 0) " · xG " + f2(s.xg.toDouble()) else "")
-    } ?: "👆 Πάτα σε ένα σουτ για λεπτομέρειες"
-    Text(info, Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(C.Ink2).border(1.dp, C.Line, RoundedCornerShape(10.dp)).padding(9.dp),
-        style = body(13, FontWeight.Bold, if (sel != null) C.Gold else C.Text2), textAlign = TextAlign.Center)
-    Note("⚪ γκολ · ● στην εστία · ○ άουτ/δοκάρι · αχνό: μπλοκ · μεγάλος κύκλος = μεγάλη ευκαιρία (xG)")
-    Divider()
-    val hs = shots.filter { it.side == "home" }; val aw = shots.filter { it.side == "away" }
-    fun on(l: List<gr.aekhub.app.data.Shot>) = l.count { it.result == "goal" || it.result == "saved" }
-    Compare("Σουτ", hs.size.toDouble(), aw.size.toDouble(), false, cols)
-    Compare("Στην εστία", on(hs).toDouble(), on(aw).toDouble(), false, cols)
-    Compare("Γκολ", hs.count { it.result == "goal" }.toDouble(), aw.count { it.result == "goal" }.toDouble(), false, cols)
-    if (shots.any { it.xg > 0 }) Compare("xG", hs.sumOf { it.xg.toDouble() }, aw.sumOf { it.xg.toDouble() }, true, cols)
-}
-
-@Composable
-private fun Compare(label: String, h: Double, a: Double, dec: Boolean, cols: Cols) = Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-    fun f(v: Double) = if (dec) f2(v) else v.toInt().toString()
-    Text(f(h), Modifier.width(44.dp), style = disp(20), color = if (h >= a) C.Text else C.Text2)
-    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label, Modifier.fillMaxWidth(), style = body(11, FontWeight.Bold, C.Muted), textAlign = TextAlign.Center)
-        val t = (h + a).takeIf { it > 0 } ?: 1.0
-        Row(Modifier.fillMaxWidth().height(6.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-            if (h > 0) Box(Modifier.weight((h / t).toFloat()).fillMaxHeight().clip(RoundedCornerShape(99.dp)).background(cols.h))
-            if (a > 0) Box(Modifier.weight((a / t).toFloat()).fillMaxHeight().clip(RoundedCornerShape(99.dp)).background(cols.a))
-            if (h <= 0 && a <= 0) Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(99.dp)).background(C.Ink2))
+            if (l.size > 5) Text(if (all) "Λιγότεροι" else "Όλοι οι παίκτες (${l.size})", Modifier.fillMaxWidth().clickable { all = !all }.padding(top = 10.dp, bottom = 2.dp), style = body(12, FontWeight.ExtraBold, C.Muted), textAlign = TextAlign.Center)
         }
     }
-    Text(f(a), Modifier.width(44.dp), style = disp(20), color = if (a >= h) C.Text else C.Text2, textAlign = TextAlign.End)
 }
 
 /* ─────────── 🏀 Διακριθέντες & box score (ξεχωριστό πάνελ ανά ομάδα) ─────────── */

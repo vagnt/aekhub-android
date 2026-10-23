@@ -177,7 +177,7 @@ data class PeriodScore(val label: String, val home: String = "", val away: Strin
 data class EventGroup(val label: String = "", val score: String = "", val open: Boolean = false, val events: List<MatchEvent> = emptyList())
 
 @Serializable
-data class Player(val number: String = "", val name: String = "", val role: String = "", val captain: Boolean = false)
+data class Player(val number: String = "", val name: String = "", val role: String = "", val captain: Boolean = false, val rating: Float = 0f)
 
 @Serializable
 data class MatchDetail(
