@@ -127,11 +127,14 @@ fun MatchScreen(id: Long, back: () -> Unit) {
     val alert = settings.alertOn(d.id, d.sport, d.aek.isNotEmpty())
     val hasStats = d.stats.isNotEmpty() || d.periods.isNotEmpty()
     val hasLineups = d.lineupHome.isNotEmpty() || d.lineupAway.isNotEmpty()
+    val ext = d.ext
+    val hasAx = ext?.hasAnalysis() == true
     // «Πορεία» μόνο όταν υπάρχουν γεγονότα. Αλλιώς μόνο Στατιστικά / Συνθέσεις.
     val tabs = buildList {
         if (d.events.isNotEmpty()) add("Πορεία")
         if (hasStats) add("Στατιστικά")
         if (hasLineups) add("Συνθέσεις")
+        if (hasAx) add("Ανάλυση")
     }
     // Το μήνυμα μόνο όταν ο αγώνας δεν έχει ΤΙΠΟΤΑ live (ούτε σκορ, ούτε γεγονότα, ούτε στατιστικά/συνθέσεις)
     val noCoverage = tabs.isEmpty() && !d.liveScore && !d.live
@@ -177,6 +180,7 @@ fun MatchScreen(id: Long, back: () -> Unit) {
         when (tabs.getOrNull(tab)) {
             "Στατιστικά" -> item(key = "stats") { StatsView(d) }
             "Συνθέσεις" -> item(key = "lu") { LineupsView(d) }
+            "Ανάλυση" -> item(key = "ax") { ext?.let { x -> AnalysisView(d, x) { scope.launch { runCatching { m = Api.match(id, fresh = true) } } } } }
             "Πορεία" -> {
                 item(key = "tlh") { TimelineHeader(d) }
                 // Ζωντανά: το πιο πρόσφατο πάνω. Τελικό: από την αρχή προς το τέλος (όπως στο site).
@@ -185,8 +189,12 @@ fun MatchScreen(id: Long, back: () -> Unit) {
             }
             else -> {
                 // Μόνο για τελικό αποτέλεσμα: πριν τη σέντρα η «Πορεία» απλώς δεν έχει ξεκινήσει ακόμα
-                if (noCoverage && d.status == "finished") item(key = "noev") {
-                    val (t1, t2) = "Μόνο αποτέλεσμα" to "Ο αγώνας δεν καλύφθηκε live. Υπάρχει μόνο το τελικό αποτέλεσμα."
+                // «📋 Μόνο αποτέλεσμα» (επιλογή του αγώνα): ημίχρονο & τελικό, χωρίς πορεία/στατιστικά
+                val ro = ext?.resultOnly == true && d.status != "upcoming" && d.status != "postponed"
+                if ((noCoverage && d.status == "finished") || ro) item(key = "noev") {
+                    val ht = ext?.htScore.orEmpty().replace("-", "–")
+                    val (t1, t2) = "Μόνο αποτέλεσμα" to (if (ro) "Ο αγώνας δεν καλύπτεται live· ενημερώνεται το σκορ στο ημίχρονο και στο τέλος." else "Ο αγώνας δεν καλύφθηκε live. Υπάρχει μόνο το τελικό αποτέλεσμα.") +
+                        (if (ht.isNotBlank()) "\nΗμίχρονο: $ht" else "")
                     Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(16.dp)).padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         Box(Modifier.size(44.dp).clip(CircleShape).background(C.Panel3), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.Info, null, tint = C.Gold) }
@@ -513,6 +521,7 @@ private fun Dot(pl: PitchPlayer, cx: Float, cy: Float, bg: Color, fg: Color) {
                 Icon(Icons.Filled.SportsSoccer, null, tint = C.Ink, modifier = Modifier.size(12.dp))
             }
             if (pl.red || pl.yellow) Box(Modifier.align(Alignment.TopStart).offset(x = (-5).dp, y = (-3).dp).size(8.dp, 11.dp).clip(RoundedCornerShape(1.dp)).background(if (pl.red) C.Live else C.Gold))
+            if (pl.rating > 0f) Box(Modifier.align(Alignment.BottomStart).offset(x = (-12).dp, y = 4.dp)) { RatingBadge(pl.rating) }
             if (pl.out.isNotBlank()) Box(Modifier.align(Alignment.BottomEnd).offset(x = 7.dp, y = 3.dp).size(14.dp).clip(CircleShape).background(C.Loss), contentAlignment = Alignment.Center) {
                 Text("↓", style = body(9, FontWeight.ExtraBold, Color.White))
             }
