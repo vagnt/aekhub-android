@@ -174,6 +174,9 @@ data class StatRow(val label: String, val type: String = "", val home: String = 
 data class PeriodScore(val label: String, val home: String = "", val away: String = "")
 
 @Serializable
+data class EventGroup(val label: String = "", val score: String = "", val open: Boolean = false, val events: List<MatchEvent> = emptyList())
+
+@Serializable
 data class Player(val number: String = "", val name: String = "", val role: String = "", val captain: Boolean = false)
 
 @Serializable
@@ -208,6 +211,8 @@ data class MatchDetail(
     val aek: String = "",
     val link: String = "",
     val events: List<MatchEvent> = emptyList(),
+    /** Πορεία ανά περίοδο/σετ/ημίχρονο (άδειο = ένα σύνολο, όπως στο ποδόσφαιρο) */
+    val groups: List<EventGroup> = emptyList(),
     val stats: List<StatRow> = emptyList(),
     val periods: List<PeriodScore> = emptyList(),
     val lineupHome: List<Player> = emptyList(),

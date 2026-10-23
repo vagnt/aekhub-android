@@ -61,8 +61,8 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 
 /*
- * 📊 Ανάλυση αγώνα — ίδια εμφάνιση με το site (Match Center 1.98): κάρτες με εικονίδιο/τίτλο/πηγή,
- * πρόβλεψη σκορ, παίκτης του αγώνα & βαθμοί, πίεση, χάρτης σουτ, ροή σκορ, σκόρερ, box score, φόρμα (πάτημα → ο αγώνας), συναντήσεις.
+ * 📊 Ανάλυση αγώνα — ίδια εμφάνιση με το site (Match Center 1.100): τίτλος ενότητας + πάνελ με κεφαλίδα ομάδας.
+ * Διακριθέντες ανά ομάδα (βαθμοί), πίεση, χάρτης σουτ, μπάσκετ box score.
  * Τα ονόματα παικτών έρχονται ήδη από τον server όπως είναι στη σύνθεση του αγώνα.
  */
 
@@ -78,67 +78,71 @@ private fun f2(v: Double) = String.format(Locale.US, "%.2f", v)
 @Composable
 fun AnalysisView(d: MatchDetail, x: MatchExtra) {
     val cols = Cols(hex(x.colorHome, C.Gold), hex(x.colorAway, C.Text2))
-    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
         x.ratings?.let { r -> TopCard(d, true, r.home, x.potm, cols); TopCard(d, false, r.away, x.potm, cols) }
         x.momentum?.takeIf { it.points.isNotEmpty() }?.let { MomentumCard(d, it, cols) }
         x.shots?.takeIf { it.isNotEmpty() }?.let { ShotsCard(d, it, cols) }
-        x.box?.let { BoxCard(d, it) }
+        x.box?.let { BoxCard(d, it, cols) }
     }
 }
 
-/* ─────────── κοινά ─────────── */
+/* ─────────── κοινά: ίδια εμφάνιση με Συνθέσεις/Πορεία — τίτλος ενότητας (κίτρινος κύκλος) + πάνελ με σκούρα κεφαλίδα ομάδας ─────────── */
 
-private val CardShape = RoundedCornerShape(18.dp)
+private val PanelShape = RoundedCornerShape(16.dp)
 
+/** Τίτλος ενότητας όπως στο site/στο app: κίτρινος κύκλος › + condensed τίτλος */
 @Composable
-private fun Card(icon: String, title: String, tag: String = "", glow: Float = 0.07f, content: @Composable () -> Unit) = Column(
-    Modifier.fillMaxWidth().clip(CardShape)
-        .background(C.Panel)
-        .background(Brush.radialGradient(listOf(C.Gold.copy(alpha = glow), Color.Transparent), center = Offset(0f, 0f), radius = 900f))
-        .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.04f), Color.White.copy(alpha = 0.01f))))
-        .border(1.dp, Color.White.copy(alpha = 0.07f), CardShape).padding(16.dp),
-    verticalArrangement = Arrangement.spacedBy(12.dp),
-) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Box(Modifier.size(32.dp).clip(RoundedCornerShape(10.dp)).background(Brush.linearGradient(listOf(C.Gold.copy(alpha = 0.22f), C.Gold.copy(alpha = 0.06f))))
-            .border(1.dp, C.Gold.copy(alpha = 0.28f), RoundedCornerShape(10.dp)), contentAlignment = Alignment.Center) { Text(icon, style = body(15)) }
-        Text(title.upperGr(), Modifier.weight(1f), style = disp(22), color = C.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        if (tag.isNotBlank()) Text(tag, Modifier.clip(RoundedCornerShape(99.dp)).background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(99.dp))
-            .padding(horizontal = 9.dp, vertical = 3.dp), style = body(10, FontWeight.ExtraBold, C.Text2))
-    }
-    content()
+private fun AxTitle(t: String) = Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Box(Modifier.size(26.dp).clip(CircleShape).background(C.Gold), contentAlignment = Alignment.Center) { Text("›", style = disp(20, FontWeight.Black), color = C.Ink) }
+    Text(t.upperGr(), style = disp(24), color = C.Text)
+    DashLine(Modifier.weight(1f))
 }
 
+/** Διακεκομμένη γραμμή (το χαρακτηριστικό του brand) */
 @Composable
-private fun Label(t: String) = Text(t.upperGr(), style = body(11, FontWeight.ExtraBold, C.Muted))
+private fun DashLine(modifier: Modifier = Modifier) = Canvas(modifier.height(2.dp)) {
+    drawLine(C.Line2, Offset(0f, 1f), Offset(size.width, 1f), 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 9f)))
+}
+
+/** Τίτλος + πάνελ: $head = κεφαλίδα (ομάδες), $tag = πηγή δεδομένων */
+@Composable
+private fun Section(title: String, tag: String = "", head: @Composable () -> Unit, content: @Composable () -> Unit) = Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    if (title.isNotBlank()) AxTitle(title)
+    Column(Modifier.fillMaxWidth().clip(PanelShape).background(C.Panel).border(1.dp, C.Line, PanelShape)) {
+        Row(Modifier.fillMaxWidth().background(C.Ink2).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) { head() }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(C.Line))
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            content()
+            if (tag.isNotBlank()) Text("Δεδομένα: $tag", Modifier.fillMaxWidth(), style = body(10, color = C.Muted), textAlign = TextAlign.End)
+        }
+    }
+}
 
 @Composable
 private fun Note(t: String) = Text(t, Modifier.fillMaxWidth(), style = body(12, color = C.Muted), textAlign = TextAlign.Center)
 
 @Composable
-private fun Divider() = Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.07f)))
+private fun Divider() = DashLine(Modifier.fillMaxWidth())
 
-/** Οι δύο ομάδες με λογότυπα και χρώμα από κάτω */
+/** Η ομάδα όπως στις Συνθέσεις: χρώμα · λογότυπο · όνομα (condensed κεφαλαία) */
 @Composable
-private fun Vs(d: MatchDetail, cols: Cols) = Row(verticalAlignment = Alignment.CenterVertically) {
-    TeamTag(d.homeLogo, d.home, cols.h, Modifier.weight(1f), end = false)
-    Spacer(Modifier.width(12.dp))
-    TeamTag(d.awayLogo, d.away, cols.a, Modifier.weight(1f), end = true)
+private fun TeamHead(logo: String, name: String, c: Color, end: Boolean = false, modifier: Modifier = Modifier) = Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    if (!end) Box(Modifier.size(10.dp).clip(CircleShape).background(c))
+    Crest(logo, name, 26.dp)
+    Text(name.upperGr(), style = disp(18), color = C.Text, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, false))
+    if (end) Box(Modifier.size(10.dp).clip(CircleShape).background(c))
 }
 
+/** Κεφαλίδα με τις δύο ομάδες (πίεση, σουτ) */
 @Composable
-private fun TeamTag(logo: String, name: String, c: Color, modifier: Modifier, end: Boolean) = Column(modifier, horizontalAlignment = if (end) Alignment.End else Alignment.Start) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (!end) Crest(logo, name, 24.dp)
-        Text(name, style = body(13, FontWeight.ExtraBold), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, false))
-        if (end) Crest(logo, name, 24.dp)
-    }
-    Box(Modifier.padding(top = 6.dp).width(56.dp).height(3.dp).clip(RoundedCornerShape(2.dp)).background(c))
+private fun VsHead(d: MatchDetail, cols: Cols) = Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    TeamHead(d.homeLogo, d.home, cols.h, false, Modifier.weight(1f))
+    TeamHead(d.awayLogo, d.away, cols.a, true, Modifier.weight(1f).padding(start = 0.dp))
 }
 
 @Composable
 private fun ChartBox(content: @Composable () -> Unit) = Column(
-    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Color.Black.copy(alpha = 0.22f)).border(1.dp, Color.White.copy(alpha = 0.04f), RoundedCornerShape(12.dp)).padding(10.dp),
+    Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(C.Ink2).border(1.dp, C.Line, RoundedCornerShape(10.dp)).padding(10.dp),
 ) { content() }
 
 @Composable
@@ -156,37 +160,29 @@ fun RatingBadge(r: Float, big: Boolean = false) = Box(
     contentAlignment = Alignment.Center,
 ) { Text(f1(r), style = body(if (big) 18 else 11, FontWeight.ExtraBold, if (r >= 8f) Color.White else C.Ink)) }
 
-/* ─────────── ⭐ Διακριθέντες: ξεχωριστή κάρτα για κάθε ομάδα ─────────── */
+/* ─────────── ⭐ Διακριθέντες: ξεχωριστό πάνελ για κάθε ομάδα ─────────── */
 
 @Composable
 private fun TopCard(d: MatchDetail, home: Boolean, list: List<gr.aekhub.app.data.RatingRow>, potm: gr.aekhub.app.data.Potm?, cols: Cols) {
     val l = list.filter { it.name.isNotBlank() }.take(5)
     if (l.isEmpty()) return
-    val team = if (home) d.home else d.away
     val side = if (home) "home" else "away"
-    Card("⭐", "Διακριθέντες") {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Crest(if (home) d.homeLogo else d.awayLogo, team, 26.dp)
-            Text(team, style = body(14, FontWeight.ExtraBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        Box(Modifier.width(56.dp).height(3.dp).clip(RoundedCornerShape(2.dp)).background(if (home) cols.h else cols.a))
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Section(if (home) "Διακριθέντες" else "", head = { TeamHead(if (home) d.homeLogo else d.awayLogo, if (home) d.home else d.away, if (home) cols.h else cols.a) }) {
+        Column {
             l.forEachIndexed { i, r ->
                 val best = potm != null && potm.side == side && potm.number == r.number
-                val shape = RoundedCornerShape(12.dp)
-                Row(Modifier.fillMaxWidth().clip(shape)
-                    .background(if (best) Brush.horizontalGradient(listOf(C.Gold.copy(alpha = 0.16f), C.Gold.copy(alpha = 0.04f))) else Brush.horizontalGradient(listOf(Color.White.copy(alpha = 0.035f), Color.White.copy(alpha = 0.035f))))
-                    .border(1.dp, if (best) C.Gold.copy(alpha = 0.4f) else Color.White.copy(alpha = 0.04f), shape).padding(horizontal = 10.dp, vertical = 9.dp),
+                Row(Modifier.fillMaxWidth().then(if (best) Modifier.background(C.Gold.copy(alpha = 0.10f)) else Modifier).padding(vertical = 9.dp),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(if (best) "⭐" else "${i + 1}", Modifier.width(22.dp), style = body(12, FontWeight.ExtraBold, C.Muted), textAlign = TextAlign.Center)
-                    Text(r.name, Modifier.weight(1f, false), style = body(14, if (best) FontWeight.ExtraBold else FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (r.number.isNotBlank()) Text("#${r.number}", style = body(10, FontWeight.Bold, C.Muted))
+                    Text(if (best) "⭐" else "${i + 1}", Modifier.width(24.dp), style = disp(19, FontWeight.Black), color = C.Gold, textAlign = TextAlign.Center)
+                    Text(r.name, Modifier.weight(1f, false), style = body(14, if (best) FontWeight.ExtraBold else FontWeight.SemiBold, if (best) C.Text else C.Text2), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (r.number.isNotBlank()) Text("#${r.number}", style = body(11, FontWeight.Bold, C.Muted))
                     Spacer(Modifier.weight(1f))
-                    Box(Modifier.width(54.dp).height(6.dp).clip(RoundedCornerShape(99.dp)).background(Color.White.copy(alpha = 0.07f))) {
+                    Box(Modifier.width(54.dp).height(6.dp).clip(RoundedCornerShape(99.dp)).background(C.Ink2)) {
                         Box(Modifier.fillMaxHeight().fillMaxWidth((r.rating / 10f).coerceIn(0.05f, 1f)).clip(RoundedCornerShape(99.dp)).background(ratingColor(r.rating)))
                     }
                     RatingBadge(r.rating)
                 }
+                if (i < l.lastIndex) DashLine(Modifier.fillMaxWidth())
             }
         }
         if (potm != null && potm.side == side) Note("⭐ Παίκτης του αγώνα")
@@ -196,8 +192,7 @@ private fun TopCard(d: MatchDetail, home: Boolean, list: List<gr.aekhub.app.data
 /* ─────────── 🔥 Πίεση αγώνα ─────────── */
 
 @Composable
-private fun MomentumCard(d: MatchDetail, m: gr.aekhub.app.data.Momentum, cols: Cols) = Card("🔥", "Πίεση αγώνα") {
-    Vs(d, cols)
+private fun MomentumCard(d: MatchDetail, m: gr.aekhub.app.data.Momentum, cols: Cols) = Section("Πίεση αγώνα", head = { VsHead(d, cols) }) {
     val total = (m.periodLength * m.periods).coerceAtLeast(1).toFloat()
     val maxMin = maxOf(total, m.points.maxOf { it.minute })
     ChartBox {
@@ -224,8 +219,7 @@ private fun MomentumCard(d: MatchDetail, m: gr.aekhub.app.data.Momentum, cols: C
 /* ─────────── 🎯 Χάρτης σουτ (γηπεδούχος επιτίθεται δεξιά) ─────────── */
 
 @Composable
-private fun ShotsCard(d: MatchDetail, shots: List<gr.aekhub.app.data.Shot>, cols: Cols) = Card("🎯", "Χάρτης σουτ") {
-    Vs(d, cols)
+private fun ShotsCard(d: MatchDetail, shots: List<gr.aekhub.app.data.Shot>, cols: Cols) = Section("Χάρτης σουτ", head = { VsHead(d, cols) }) {
     Row { Text("← επιτίθεται η ${d.away}", style = body(10, FontWeight.Bold, C.Muted)); Spacer(Modifier.weight(1f)); Text("επιτίθεται η ${d.home} →", style = body(10, FontWeight.Bold, C.Muted)) }
     var sel by remember(shots) { mutableStateOf<gr.aekhub.app.data.Shot?>(null) }
     val line = Color.White.copy(alpha = 0.5f)
@@ -263,7 +257,7 @@ private fun ShotsCard(d: MatchDetail, shots: List<gr.aekhub.app.data.Shot>, cols
         val res = mapOf("goal" to "⚽ Γκολ", "saved" to "Στην εστία", "miss" to "Άουτ", "blocked" to "Μπλοκ", "post" to "Δοκάρι")[s.result] ?: s.result
         "${s.minute}′ · ${s.player.ifBlank { "—" }} · $res" + (if (s.penalty) " (πέν.)" else "") + (if (s.xg > 0) " · xG " + f2(s.xg.toDouble()) else "")
     } ?: "👆 Πάτα σε ένα σουτ για λεπτομέρειες"
-    Text(info, Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color.Black.copy(alpha = 0.25f)).padding(9.dp),
+    Text(info, Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(C.Ink2).border(1.dp, C.Line, RoundedCornerShape(10.dp)).padding(9.dp),
         style = body(13, FontWeight.Bold, if (sel != null) C.Gold else C.Text2), textAlign = TextAlign.Center)
     Note("⚪ γκολ · ● στην εστία · ○ άουτ/δοκάρι · αχνό: μπλοκ · μεγάλος κύκλος = μεγάλη ευκαιρία (xG)")
     Divider()
@@ -278,48 +272,45 @@ private fun ShotsCard(d: MatchDetail, shots: List<gr.aekhub.app.data.Shot>, cols
 @Composable
 private fun Compare(label: String, h: Double, a: Double, dec: Boolean, cols: Cols) = Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
     fun f(v: Double) = if (dec) f2(v) else v.toInt().toString()
-    Text(f(h), Modifier.width(44.dp), style = body(15, if (h >= a) FontWeight.ExtraBold else FontWeight.Medium, if (h >= a) C.Text else C.Text2))
+    Text(f(h), Modifier.width(44.dp), style = disp(20), color = if (h >= a) C.Text else C.Text2)
     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(label, Modifier.fillMaxWidth(), style = body(11, FontWeight.Bold, C.Muted), textAlign = TextAlign.Center)
         val t = (h + a).takeIf { it > 0 } ?: 1.0
         Row(Modifier.fillMaxWidth().height(6.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             if (h > 0) Box(Modifier.weight((h / t).toFloat()).fillMaxHeight().clip(RoundedCornerShape(99.dp)).background(cols.h))
             if (a > 0) Box(Modifier.weight((a / t).toFloat()).fillMaxHeight().clip(RoundedCornerShape(99.dp)).background(cols.a))
-            if (h <= 0 && a <= 0) Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(99.dp)).background(Color.White.copy(alpha = 0.06f)))
+            if (h <= 0 && a <= 0) Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(99.dp)).background(C.Ink2))
         }
     }
-    Text(f(a), Modifier.width(44.dp), style = body(15, if (a >= h) FontWeight.ExtraBold else FontWeight.Medium, if (a >= h) C.Text else C.Text2), textAlign = TextAlign.End)
+    Text(f(a), Modifier.width(44.dp), style = disp(20), color = if (a >= h) C.Text else C.Text2, textAlign = TextAlign.End)
 }
 
-/* ─────────── 🏀 Διακριθέντες & box score (ξεχωριστή κάρτα ανά ομάδα) ─────────── */
+/* ─────────── 🏀 Διακριθέντες & box score (ξεχωριστό πάνελ ανά ομάδα) ─────────── */
 
 @Composable
-private fun BoxCard(d: MatchDetail, b: gr.aekhub.app.data.BoxScore) {
-    listOf(Triple(d.home, d.homeLogo, b.home), Triple(d.away, d.awayLogo, b.away)).filter { it.third.isNotEmpty() }.forEach { (team, logo, list) ->
-        Card("🏀", "Διακριθέντες", src(b.src)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) { Crest(logo, team, 26.dp); Text(team, style = body(14, FontWeight.ExtraBold)) }
+private fun BoxCard(d: MatchDetail, b: gr.aekhub.app.data.BoxScore, cols: Cols) {
+    listOf(Triple(true, d.home to d.homeLogo, b.home), Triple(false, d.away to d.awayLogo, b.away)).filter { it.third.isNotEmpty() }.forEachIndexed { idx, (home, tl, list) ->
+        Section(if (idx == 0) "Διακριθέντες" else "", src(b.src), head = { TeamHead(tl.second, tl.first, if (home) cols.h else cols.a) }) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 list.sortedByDescending { it.pts }.take(3).forEachIndexed { i, r ->
-                    Column(Modifier.weight(1f).clip(RoundedCornerShape(14.dp))
-                        .background(if (i == 0) Brush.verticalGradient(listOf(C.Gold.copy(alpha = 0.18f), C.Gold.copy(alpha = 0.04f))) else Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.04f), Color.White.copy(alpha = 0.04f))))
-                        .border(1.dp, if (i == 0) C.Gold.copy(alpha = 0.4f) else Color.White.copy(alpha = 0.05f), RoundedCornerShape(14.dp)).padding(vertical = 10.dp, horizontal = 4.dp),
+                    Column(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(if (i == 0) C.Gold.copy(alpha = 0.12f) else C.Ink2)
+                        .border(1.dp, if (i == 0) C.Gold.copy(alpha = 0.35f) else C.Line, RoundedCornerShape(10.dp)).padding(vertical = 10.dp, horizontal = 4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("${r.pts}", style = disp(30, FontWeight.Black), color = if (i == 0) C.Gold else C.Text)
-                        Text(r.name, style = body(12, FontWeight.ExtraBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("${r.pts}", style = disp(36, FontWeight.Black), color = if (i == 0) C.Gold else C.Text)
+                        Text(r.name, style = body(12, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text("${r.reb} ριμπ. · ${r.ast} ασίστ", style = body(10, color = C.Muted), textAlign = TextAlign.Center, maxLines = 2)
                     }
                 }
             }
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).border(1.dp, Color.White.copy(alpha = 0.06f), RoundedCornerShape(12.dp))) {
-                val cols = listOf("ΛΕΠ", "ΠΟΝ", "ΡΙΜ", "ΑΣ")
-                Row(Modifier.fillMaxWidth().background(Color.White.copy(alpha = 0.04f)).padding(horizontal = 10.dp, vertical = 7.dp)) {
-                    Text("ΠΑΙΚΤΗΣ", Modifier.weight(1f), style = body(10, FontWeight.ExtraBold, C.Muted)); cols.forEach { Text(it, Modifier.width(36.dp), style = body(10, FontWeight.ExtraBold, C.Muted), textAlign = TextAlign.End) }
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).border(1.dp, C.Line, RoundedCornerShape(10.dp))) {
+                Row(Modifier.fillMaxWidth().background(C.Ink2).padding(horizontal = 10.dp, vertical = 8.dp)) {
+                    Text("ΠΑΙΚΤΗΣ", Modifier.weight(1f), style = body(10, FontWeight.ExtraBold, C.Muted)); listOf("ΛΕΠ", "ΠΟΝ", "ΡΙΜ", "ΑΣ").forEach { Text(it, Modifier.width(36.dp), style = body(10, FontWeight.ExtraBold, C.Muted), textAlign = TextAlign.End) }
                 }
                 val best = listOf(list.maxOf { it.pts }, list.maxOf { it.reb }, list.maxOf { it.ast })
                 list.forEach { r: BoxRow ->
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.05f)))
+                    DashLine(Modifier.fillMaxWidth())
                     Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(r.number, Modifier.width(24.dp), style = body(11, FontWeight.ExtraBold, C.Muted))
+                        Text(r.number, Modifier.width(26.dp), style = disp(16, FontWeight.Black), color = C.Gold)
                         Text(r.name, Modifier.weight(1f), style = body(13, if (r.starter) FontWeight.ExtraBold else FontWeight.Medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text("${r.min}′", Modifier.width(36.dp), style = body(13, color = C.Muted), textAlign = TextAlign.End)
                         listOf(r.pts, r.reb, r.ast).forEachIndexed { k, v ->
@@ -328,7 +319,7 @@ private fun BoxCard(d: MatchDetail, b: gr.aekhub.app.data.BoxScore) {
                         }
                     }
                 }
-                Row(Modifier.fillMaxWidth().background(Color.White.copy(alpha = 0.03f)).padding(horizontal = 10.dp, vertical = 8.dp)) {
+                Row(Modifier.fillMaxWidth().background(C.Ink2).padding(horizontal = 10.dp, vertical = 8.dp)) {
                     Text("Σύνολο", Modifier.weight(1f), style = body(13, FontWeight.ExtraBold, C.Text2)); Spacer(Modifier.width(36.dp))
                     listOf(list.sumOf { it.pts }, list.sumOf { it.reb }, list.sumOf { it.ast }).forEach { Text("$it", Modifier.width(36.dp), style = body(13, FontWeight.ExtraBold, C.Text2), textAlign = TextAlign.End) }
                 }

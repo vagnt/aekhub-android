@@ -34,7 +34,6 @@ object Push {
         s.sports.forEach { sp ->
             if (s.wants(sp, Kinds.GOALS) || s.wants(sp, Kinds.OPP)) add("m_${sp}_goals") // γκολ αντιπάλου: φιλτράρεται στο κινητό
             if (s.wants(sp, Kinds.STARTEND)) add("m_${sp}_startend")
-            if (s.wants(sp, Kinds.LINEUP)) add("m_${sp}_lineup")
             if (s.wants(sp, Kinds.CARDS)) add("m_${sp}_cards")
             if (s.wants(sp, Kinds.REMINDER)) add("m_${sp}_reminder")
         }
