@@ -7,10 +7,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -124,23 +121,4 @@ object Api {
         })
     }
     suspend fun standings(fresh: Boolean = false): StandingsList = json.decodeFromString(get("/standings", fresh))
-
-    /** Αναγνωριστικό συσκευής για τις ψήφους (μία ψήφος ανά συσκευή) — τυχαίο, χωρίς προσωπικά στοιχεία. */
-    fun deviceId(ctx: Context): String {
-        val sp = ctx.getSharedPreferences("aekhub_dev", Context.MODE_PRIVATE)
-        return sp.getString("id", null) ?: java.util.UUID.randomUUID().toString().replace("-", "").also { sp.edit().putString("id", it).apply() }
-    }
-
-    /** 🔮 Πρόβλεψη σκορ: key «2-1» / «3-1» (σετ) / «H» ή «A» (νικητής). Σφάλμα → μήνυμα του server. */
-    suspend fun predict(ctx: Context, id: Long, key: String): Predict = withContext(Dispatchers.IO) {
-        val body = json.encodeToString(kotlinx.serialization.json.JsonObject.serializer(), kotlinx.serialization.json.buildJsonObject {
-            put("device", kotlinx.serialization.json.JsonPrimitive(deviceId(ctx))); put("key", kotlinx.serialization.json.JsonPrimitive(key))
-        })
-        val req = Request.Builder().url("$BASE/predict/$id").post(body.toRequestBody("application/json".toMediaType())).build()
-        http.newCall(req).execute().use { r ->
-            val b = r.body?.string().orEmpty()
-            if (!r.isSuccessful) throw IOException(runCatching { json.parseToJsonElement(b).jsonObject["message"]?.jsonPrimitive?.content }.getOrNull() ?: ("HTTP " + r.code))
-            json.decodeFromString(Predict.serializer(), b)
-        }
-    }
 }

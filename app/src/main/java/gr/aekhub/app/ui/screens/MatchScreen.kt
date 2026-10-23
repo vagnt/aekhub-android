@@ -58,6 +58,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -134,7 +135,7 @@ fun MatchScreen(id: Long, back: () -> Unit) {
         if (d.events.isNotEmpty()) add("Πορεία")
         if (hasStats) add("Στατιστικά")
         if (hasLineups) add("Συνθέσεις")
-        if (hasAx) add("Ανάλυση")
+        if (hasAx) add("Παίκτες")
     }
     // Το μήνυμα μόνο όταν ο αγώνας δεν έχει ΤΙΠΟΤΑ live (ούτε σκορ, ούτε γεγονότα, ούτε στατιστικά/συνθέσεις)
     val noCoverage = tabs.isEmpty() && !d.liveScore && !d.live
@@ -180,7 +181,7 @@ fun MatchScreen(id: Long, back: () -> Unit) {
         when (tabs.getOrNull(tab)) {
             "Στατιστικά" -> item(key = "stats") { StatsView(d) }
             "Συνθέσεις" -> item(key = "lu") { LineupsView(d) }
-            "Ανάλυση" -> item(key = "ax") { ext?.let { x -> AnalysisView(d, x) { scope.launch { runCatching { m = Api.match(id, fresh = true) } } } } }
+            "Παίκτες" -> item(key = "ax") { ext?.let { x -> AnalysisView(d, x) } }
             "Πορεία" -> {
                 item(key = "tlh") { TimelineHeader(d) }
                 // Ζωντανά: το πιο πρόσφατο πάνω. Τελικό: από την αρχή προς το τέλος (όπως στο site).
@@ -499,34 +500,38 @@ private fun PitchView(d: MatchDetail, p: gr.aekhub.app.data.Pitch) {
         val w = maxWidth; val h = maxHeight
         androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(gr.aekhub.app.R.drawable.pitch_bg), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         // Γηπεδούχοι πάνω (καθρέφτης), φιλοξενούμενοι κάτω — όπως στο site
-        p.home.forEach { pl -> Dot(pl, (100f - pl.x) / 100f * w.value, pl.y / 100f * (h.value / 2f) * 0.92f + h.value * 0.03f, homeBg, homeFg) }
-        p.away.forEach { pl -> Dot(pl, pl.x / 100f * w.value, h.value - (pl.y / 100f * (h.value / 2f) * 0.92f + h.value * 0.03f), awayBg, awayFg) }
+        val top = (p.home + p.away).maxOfOrNull { it.rating } ?: 0f
+        fun best(pl: PitchPlayer) = d.status == "finished" && pl.rating > 0f && pl.rating >= top
+        p.home.forEach { pl -> Dot(pl, (100f - pl.x) / 100f * w.value, pl.y / 100f * (h.value / 2f) * 0.92f + h.value * 0.03f, homeBg, homeFg, best(pl)) }
+        p.away.forEach { pl -> Dot(pl, pl.x / 100f * w.value, h.value - (pl.y / 100f * (h.value / 2f) * 0.92f + h.value * 0.03f), awayBg, awayFg, best(pl)) }
         if (p.formationHome.isNotBlank()) Text(p.formationHome, Modifier.align(Alignment.TopEnd).padding(8.dp), style = body(11, FontWeight.ExtraBold, Color.White.copy(alpha = 0.85f)))
         if (p.formationAway.isNotBlank()) Text(p.formationAway, Modifier.align(Alignment.BottomEnd).padding(8.dp), style = body(11, FontWeight.ExtraBold, Color.White.copy(alpha = 0.85f)))
     }
 }
 
 @Composable
-private fun Dot(pl: PitchPlayer, cx: Float, cy: Float, bg: Color, fg: Color) {
+private fun Dot(pl: PitchPlayer, cx: Float, cy: Float, bg: Color, fg: Color, best: Boolean = false) {
     val boxW = 74f
     Column(
         Modifier.offset(x = (cx - boxW / 2f).dp, y = (cy - 15f).dp).width(boxW.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box {
-            Box(Modifier.size(30.dp).clip(CircleShape).background(bg).border(2.dp, Color.White.copy(alpha = 0.85f), CircleShape), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(30.dp).then(if (best) Modifier.shadow(10.dp, CircleShape, ambientColor = C.Gold, spotColor = C.Gold) else Modifier).clip(CircleShape).background(bg)
+                .border(2.dp, if (best) C.Gold else Color.White.copy(alpha = 0.85f), CircleShape), contentAlignment = Alignment.Center) {
                 Text(pl.number, style = disp(15, FontWeight.Black), color = fg)
             }
             if (pl.goals > 0) Box(Modifier.align(Alignment.TopEnd).offset(x = 6.dp, y = (-4).dp).size(14.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
                 Icon(Icons.Filled.SportsSoccer, null, tint = C.Ink, modifier = Modifier.size(12.dp))
             }
             if (pl.red || pl.yellow) Box(Modifier.align(Alignment.TopStart).offset(x = (-5).dp, y = (-3).dp).size(8.dp, 11.dp).clip(RoundedCornerShape(1.dp)).background(if (pl.red) C.Live else C.Gold))
-            if (pl.rating > 0f) Box(Modifier.align(Alignment.BottomStart).offset(x = (-12).dp, y = 4.dp)) { RatingBadge(pl.rating) }
+            if (best) Text("⭐", Modifier.align(Alignment.TopCenter).offset(y = (-13).dp), style = body(11))
+            if (pl.rating > 0f) Box(Modifier.align(Alignment.BottomCenter).offset(y = 9.dp)) { RatingBadge(pl.rating) }
             if (pl.out.isNotBlank()) Box(Modifier.align(Alignment.BottomEnd).offset(x = 7.dp, y = 3.dp).size(14.dp).clip(CircleShape).background(C.Loss), contentAlignment = Alignment.Center) {
                 Text("↓", style = body(9, FontWeight.ExtraBold, Color.White))
             }
         }
-        Text(pl.name.substringAfterLast(' ').ifBlank { pl.name }, Modifier.padding(top = 2.dp).clip(RoundedCornerShape(4.dp)).background(Color.Black.copy(alpha = 0.45f)).padding(horizontal = 4.dp),
+        Text(pl.name.substringAfterLast(' ').ifBlank { pl.name }, Modifier.padding(top = if (pl.rating > 0f) 9.dp else 2.dp).clip(RoundedCornerShape(4.dp)).background(Color.Black.copy(alpha = 0.45f)).padding(horizontal = 4.dp),
             style = body(10, FontWeight.ExtraBold, Color.White), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
