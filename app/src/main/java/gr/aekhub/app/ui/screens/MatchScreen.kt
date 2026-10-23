@@ -530,7 +530,7 @@ private fun LineupsView(d: MatchDetail) {
 private fun PitchView(d: MatchDetail, p: gr.aekhub.app.data.Pitch) {
     val homeBg = hex(d.homeColor, C.Text2); val homeFg = hex(d.homeNum, C.Ink)
     val awayBg = hex(d.awayColor, C.Gold); val awayFg = hex(d.awayNum, C.Ink)
-    BoxWithConstraints(Modifier.fillMaxWidth().aspectRatio(500f / 698f).clip(RoundedCornerShape(16.dp))) {
+    BoxWithConstraints(Modifier.fillMaxWidth().aspectRatio(500f / 770f).clip(RoundedCornerShape(16.dp))) {
         val w = maxWidth; val h = maxHeight
         androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(gr.aekhub.app.R.drawable.pitch_bg), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         // Γηπεδούχοι πάνω (καθρέφτης), φιλοξενούμενοι κάτω — όπως στο site
@@ -545,28 +545,28 @@ private fun PitchView(d: MatchDetail, p: gr.aekhub.app.data.Pitch) {
 
 @Composable
 private fun Dot(pl: PitchPlayer, cx: Float, cy: Float, bg: Color, fg: Color, best: Boolean = false) {
-    val boxW = 74f
+    val boxW = 84f
     Column(
-        Modifier.offset(x = (cx - boxW / 2f).dp, y = (cy - 15f).dp).width(boxW.dp),
+        Modifier.offset(x = (cx - boxW / 2f).dp, y = (cy - 18f).dp).width(boxW.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box {
-            Box(Modifier.size(30.dp).then(if (best) Modifier.shadow(10.dp, CircleShape, ambientColor = C.Gold, spotColor = C.Gold) else Modifier).clip(CircleShape).background(bg)
+            Box(Modifier.size(36.dp).then(if (best) Modifier.shadow(10.dp, CircleShape, ambientColor = C.Gold, spotColor = C.Gold) else Modifier).clip(CircleShape).background(bg)
                 .border(2.dp, if (best) C.Gold else Color.White.copy(alpha = 0.85f), CircleShape), contentAlignment = Alignment.Center) {
-                Text(pl.number, style = disp(15, FontWeight.Black), color = fg)
+                Text(pl.number, style = disp(17, FontWeight.Black), color = fg)
             }
-            if (pl.goals > 0) Box(Modifier.align(Alignment.TopEnd).offset(x = 9.dp, y = (-6).dp).size(14.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.SportsSoccer, null, tint = C.Ink, modifier = Modifier.size(12.dp))
+            if (pl.goals > 0) Box(Modifier.align(Alignment.TopEnd).offset(x = 10.dp, y = (-7).dp).size(16.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.SportsSoccer, null, tint = C.Ink, modifier = Modifier.size(14.dp))
             }
-            if (pl.red || pl.yellow) Box(Modifier.align(Alignment.TopStart).offset(x = (-8).dp, y = (-5).dp).size(8.dp, 11.dp).clip(RoundedCornerShape(1.dp)).background(if (pl.red) C.Live else C.Gold))
-            if (pl.out.isNotBlank()) Box(Modifier.align(Alignment.BottomEnd).offset(x = 9.dp, y = 2.dp).size(14.dp).clip(CircleShape).background(C.Loss), contentAlignment = Alignment.Center) {
-                Text("↓", style = body(9, FontWeight.ExtraBold, Color.White))
+            if (pl.red || pl.yellow) Box(Modifier.align(Alignment.TopStart).offset(x = (-9).dp, y = (-6).dp).size(10.dp, 14.dp).clip(RoundedCornerShape(1.dp)).background(if (pl.red) C.Live else C.Gold))
+            if (pl.out.isNotBlank()) Row(Modifier.align(Alignment.BottomEnd).offset(x = 22.dp, y = 2.dp).clip(RoundedCornerShape(6.dp)).background(C.Loss).padding(horizontal = 4.dp, vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("↓" + pl.out, style = body(10, FontWeight.ExtraBold, Color.White), maxLines = 1)
             }
         }
         // βαθμός: κάτω από τον κύκλο, στη ροή (όχι πάνω στα σήματα γκολ/κάρτας/αλλαγής)
         if (pl.rating > 0f) Box(Modifier.offset(y = (-8).dp)) { RatingBadge(pl.rating, best = best) }
-        Text(pl.name.substringAfterLast(' ').ifBlank { pl.name }, Modifier.then(if (pl.rating > 0f) Modifier.offset(y = (-6).dp) else Modifier.padding(top = 2.dp)).clip(RoundedCornerShape(4.dp)).background(Color.Black.copy(alpha = 0.45f)).padding(horizontal = 4.dp),
-            style = body(10, FontWeight.ExtraBold, Color.White), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(pl.name.substringAfterLast(' ').ifBlank { pl.name }, Modifier.widthIn(max = boxW.dp).then(if (pl.rating > 0f) Modifier.offset(y = (-6).dp) else Modifier.padding(top = 2.dp)).clip(RoundedCornerShape(4.dp)).background(Color.Black.copy(alpha = 0.45f)).padding(horizontal = 4.dp),
+            style = body(11, FontWeight.ExtraBold, Color.White), maxLines = 2, textAlign = TextAlign.Center, overflow = TextOverflow.Ellipsis)
     }
 }
 
