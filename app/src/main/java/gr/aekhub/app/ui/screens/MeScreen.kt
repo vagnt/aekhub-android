@@ -155,6 +155,10 @@ fun MeScreen(openPost: (Long) -> Unit) {
         if (s.nAll) {
             item { SectionLabel("ΑΝΑ ΑΘΛΗΜΑ") }
             val list = config?.sports?.map { it.key to it.name } ?: Kinds.SPORTS.map { it to sportName(it) }
+            item {
+                val allOn = list.all { (k, _) -> k in s.sports && Kinds.ALL.all { "$k:$it" in s.kinds } }
+                NewsChip(if (allOn) "✓ Όλα επιλεγμένα — πάτα για να τα ξεχωρίσεις" else "Επιλογή όλων", allOn) { scope.launch { prefs.selectAllSports(!allOn, list.map { it.first }) } }
+            }
             items(list, key = { "sp" + it.first }) { (key, name) ->
                 SportCard(key, name, s, { scope.launch { prefs.toggleSport(key) } }) { kind, on -> scope.launch { prefs.setKind(key, kind, on) } }
             }
