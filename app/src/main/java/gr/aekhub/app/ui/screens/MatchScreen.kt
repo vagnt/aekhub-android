@@ -555,17 +555,17 @@ private fun Dot(pl: PitchPlayer, cx: Float, cy: Float, bg: Color, fg: Color, bes
                 .border(2.dp, if (best) C.Gold else Color.White.copy(alpha = 0.85f), CircleShape), contentAlignment = Alignment.Center) {
                 Text(pl.number, style = disp(15, FontWeight.Black), color = fg)
             }
-            if (pl.goals > 0) Box(Modifier.align(Alignment.TopEnd).offset(x = 6.dp, y = (-4).dp).size(14.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
+            if (pl.goals > 0) Box(Modifier.align(Alignment.TopEnd).offset(x = 9.dp, y = (-6).dp).size(14.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) {
                 Icon(Icons.Filled.SportsSoccer, null, tint = C.Ink, modifier = Modifier.size(12.dp))
             }
-            if (pl.red || pl.yellow) Box(Modifier.align(Alignment.TopStart).offset(x = (-5).dp, y = (-3).dp).size(8.dp, 11.dp).clip(RoundedCornerShape(1.dp)).background(if (pl.red) C.Live else C.Gold))
-            if (best) Text("⭐", Modifier.align(Alignment.TopCenter).offset(y = (-13).dp), style = body(11))
-            if (pl.rating > 0f) Box(Modifier.align(Alignment.BottomCenter).offset(y = 9.dp)) { RatingBadge(pl.rating) }
-            if (pl.out.isNotBlank()) Box(Modifier.align(Alignment.BottomEnd).offset(x = 7.dp, y = 3.dp).size(14.dp).clip(CircleShape).background(C.Loss), contentAlignment = Alignment.Center) {
+            if (pl.red || pl.yellow) Box(Modifier.align(Alignment.TopStart).offset(x = (-8).dp, y = (-5).dp).size(8.dp, 11.dp).clip(RoundedCornerShape(1.dp)).background(if (pl.red) C.Live else C.Gold))
+            if (pl.out.isNotBlank()) Box(Modifier.align(Alignment.BottomEnd).offset(x = 9.dp, y = 2.dp).size(14.dp).clip(CircleShape).background(C.Loss), contentAlignment = Alignment.Center) {
                 Text("↓", style = body(9, FontWeight.ExtraBold, Color.White))
             }
         }
-        Text(pl.name.substringAfterLast(' ').ifBlank { pl.name }, Modifier.padding(top = if (pl.rating > 0f) 9.dp else 2.dp).clip(RoundedCornerShape(4.dp)).background(Color.Black.copy(alpha = 0.45f)).padding(horizontal = 4.dp),
+        // βαθμός: κάτω από τον κύκλο, στη ροή (όχι πάνω στα σήματα γκολ/κάρτας/αλλαγής)
+        if (pl.rating > 0f) Box(Modifier.offset(y = (-8).dp)) { RatingBadge(pl.rating, best = best) }
+        Text(pl.name.substringAfterLast(' ').ifBlank { pl.name }, Modifier.then(if (pl.rating > 0f) Modifier.offset(y = (-6).dp) else Modifier.padding(top = 2.dp)).clip(RoundedCornerShape(4.dp)).background(Color.Black.copy(alpha = 0.45f)).padding(horizontal = 4.dp),
             style = body(10, FontWeight.ExtraBold, Color.White), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
@@ -586,5 +586,6 @@ private fun TeamList(name: String, logo: String, xi: List<Player>, subs: List<Pl
 @Composable
 private fun PlayerLine(p: Player, aek: Boolean) = Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
     Text(p.number, Modifier.width(22.dp), style = disp(16, FontWeight.Black), color = if (aek) C.Gold else C.Muted)
-    Text(p.name + if (p.captain) " (Κ)" else "", style = body(13, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Text(p.name + if (p.captain) " (Κ)" else "", Modifier.weight(1f, false), style = body(13, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    if (p.rating > 0f) RatingBadge(p.rating)
 }

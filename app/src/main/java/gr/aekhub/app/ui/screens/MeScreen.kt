@@ -102,6 +102,28 @@ fun MeScreen(openPost: (Long) -> Unit) {
                 ) { Text("Άνοιξέ τες", style = body(14, FontWeight.ExtraBold, C.Ink)) }
             }
         }
+        // Διάγνωση ειδοποιήσεων: δοκιμαστική ειδοποίηση απευθείας στο κινητό
+        item {
+            var res by remember { mutableStateOf<String?>(null) }
+            var busy by remember { mutableStateOf(false) }
+            val topics = remember(allowed, s) { ctx.getSharedPreferences("push", android.content.Context.MODE_PRIVATE).getStringSet("topics", emptySet())?.size ?: 0 }
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(C.Panel2).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Άδεια: " + (if (allowed) "ναι" else "ΟΧΙ") + " · Firebase: " + (if (pushOn) "ναι" else "ΟΧΙ") + " · θέματα: $topics", style = body(12, color = C.Text2))
+                Box(Modifier.clip(RoundedCornerShape(10.dp)).background(C.Gold).clickable(enabled = !busy) {
+                    busy = true; res = "Στέλνω…"
+                    scope.launch {
+                        res = try {
+                            val tok = kotlin.coroutines.suspendCoroutine<String?> { c ->
+                                com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { t -> c.resumeWith(Result.success(if (t.isSuccessful) t.result else null)) }
+                            }
+                            if (tok == null) "❌ Το κινητό δεν πήρε token από τη Google (internet ή Google Play Services;)" else Api.pushTest(tok)
+                        } catch (e: Exception) { "❌ " + (e.message ?: e.javaClass.simpleName) }
+                        busy = false
+                    }
+                }.padding(horizontal = 16.dp, vertical = 10.dp)) { Text("🔔 Δοκιμή ειδοποίησης", style = body(14, FontWeight.ExtraBold, C.Ink)) }
+                res?.let { Text(it, style = body(12, color = C.Text2)) }
+            }
+        }
         // Γενικός διακόπτης
         item {
             Row(
