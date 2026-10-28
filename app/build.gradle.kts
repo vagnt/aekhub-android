@@ -15,8 +15,8 @@ android {
         applicationId = "gr.aekhub.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 30
-        versionName = "0.10.4"
+        versionCode = 31
+        versionName = "0.11.0"
         buildConfigField("String", "SITE", "\"https://aekhub.gr\"")
         // AdMob App ID (δημόσιο αναγνωριστικό). Μέχρι να μπει το δικό μας, το δοκιμαστικό της Google.
         manifestPlaceholders["admobAppId"] = (project.findProperty("admobAppId") as String?) ?: "ca-app-pub-3940256099942544~3347511713"
@@ -88,6 +88,7 @@ dependencies {
     implementation("org.jsoup:jsoup:1.18.1")
     implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
     implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.android.gms:play-services-ads:23.5.0")
     implementation("com.google.android.ump:user-messaging-platform:3.1.0")
     debugImplementation("androidx.compose.ui:ui-tooling")

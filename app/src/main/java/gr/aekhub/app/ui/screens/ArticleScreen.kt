@@ -106,13 +106,14 @@ fun ArticleScreen(id: Long, back: () -> Unit, openPost: (Long) -> Unit = {}) {
         refreshing = false
     }
 
+    LaunchedEffect(post?.id) { post?.let { gr.aekhub.app.data.Analytics.event(ctx, "article_view", "item_id" to it.id, "item_name" to it.title, "category" to it.category) } }
     val p = post
     if (p == null) { if (error) ErrorBox { key++ } else Loading(); return }
     val saved = settings.saved.any { it.id == p.id }
     val scale = settings.textScale
-    fun share() = ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+    fun share() = gr.aekhub.app.data.Analytics.event(ctx, "share", "content_type" to "article", "item_id" to p.id).also { ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"; putExtra(Intent.EXTRA_SUBJECT, p.title); putExtra(Intent.EXTRA_TEXT, p.title + "\n" + p.link)
-    }, "Κοινοποίηση"))
+    }, "Κοινοποίηση")) }
 
     Box(Modifier.fillMaxSize()) {
         androidx.compose.material3.pulltorefresh.PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; fresh = true; key++ }, modifier = Modifier.fillMaxSize()) {
@@ -164,6 +165,7 @@ fun ArticleScreen(id: Long, back: () -> Unit, openPost: (Long) -> Unit = {}) {
                     if (a != null && a.article && (i == 2 && blocks.size > 5 || i == blocks.size - 1)) BannerAd(a, medium = true, modifier = Modifier.padding(top = 16.dp), place = "article")
                 }
             }
+            item(key = "comments") { gr.aekhub.app.ui.components.CommentsSection(p.id) } // 💬 ίδια σχόλια με το site
             if (socials.isNotEmpty()) item(key = "socials") {
                 Box(Modifier.padding(horizontal = 16.dp)) { SocialRow(socials, "Συζήτησέ το μαζί μας") }
             }

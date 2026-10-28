@@ -102,28 +102,6 @@ fun MeScreen(openPost: (Long) -> Unit) {
                 ) { Text("Άνοιξέ τες", style = body(14, FontWeight.ExtraBold, C.Ink)) }
             }
         }
-        // Διάγνωση ειδοποιήσεων: δοκιμαστική ειδοποίηση απευθείας στο κινητό
-        item {
-            var res by remember { mutableStateOf<String?>(null) }
-            var busy by remember { mutableStateOf(false) }
-            val topics = remember(allowed, s) { ctx.getSharedPreferences("push", android.content.Context.MODE_PRIVATE).getStringSet("topics", emptySet())?.size ?: 0 }
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(C.Panel2).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Άδεια: " + (if (allowed) "ναι" else "ΟΧΙ") + " · Firebase: " + (if (pushOn) "ναι" else "ΟΧΙ") + " · θέματα: $topics", style = body(12, color = C.Text2))
-                Box(Modifier.clip(RoundedCornerShape(10.dp)).background(C.Gold).clickable(enabled = !busy) {
-                    busy = true; res = "Στέλνω…"
-                    scope.launch {
-                        res = try {
-                            val tok = kotlin.coroutines.suspendCoroutine<String?> { c ->
-                                com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { t -> c.resumeWith(Result.success(if (t.isSuccessful) t.result else null)) }
-                            }
-                            if (tok == null) "❌ Το κινητό δεν πήρε token από τη Google (internet ή Google Play Services;)" else Api.pushTest(tok)
-                        } catch (e: Exception) { "❌ " + (e.message ?: e.javaClass.simpleName) }
-                        busy = false
-                    }
-                }.padding(horizontal = 16.dp, vertical = 10.dp)) { Text("🔔 Δοκιμή ειδοποίησης", style = body(14, FontWeight.ExtraBold, C.Ink)) }
-                res?.let { Text(it, style = body(12, color = C.Text2)) }
-            }
-        }
         // Γενικός διακόπτης
         item {
             Row(
@@ -181,6 +159,8 @@ fun MeScreen(openPost: (Long) -> Unit) {
                 Group("ΓΕΝΙΚΑ") {
                     Toggle(Icons.Filled.VisibilityOff, "Χωρίς spoilers", "Για όσους βλέπουν τον αγώνα αργότερα: οι ειδοποιήσεις δεν δείχνουν σκορ.", "ΑΕΚ – Ολυμπιακός · Νέα εξέλιξη", s.nSpoiler) { scope.launch { prefs.setFlag("spoiler", it) } }
                     Toggle(Icons.Filled.Bedtime, "Ήσυχες ώρες", "Από 01:00 έως 08:00 το κινητό δεν χτυπάει. Εξαίρεση: τα γκολ της ΑΕΚ.", null, s.nQuiet) { scope.launch { prefs.setFlag("quiet", it) } }
+                    HorizontalDivider(Modifier.padding(start = 68.dp, end = 16.dp), thickness = 1.dp, color = C.Line)
+                    Toggle(Icons.Filled.Insights, "Ανώνυμα στατιστικά", "Βοηθούν να βελτιώνουμε το AEK Hub (ποια άρθρα και αγώνες διαβάζονται). Χωρίς προσωπικά στοιχεία, μόνο αν έχεις δώσει συναίνεση στη φόρμα απορρήτου — και μπορείς να τα κλείσεις.", null, s.nStats) { scope.launch { prefs.setFlag("stats", it) } }
                     Row(
                         Modifier.fillMaxWidth().clickable {
                             runCatching { ctx.startActivity(Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName).putExtra(Settings.EXTRA_CHANNEL_ID, gr.aekhub.app.push.Notifs.CH_GOAL)) }
@@ -189,13 +169,11 @@ fun MeScreen(openPost: (Long) -> Unit) {
                     ) {
                         IconBox(Icons.Filled.MusicNote, true)
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text("Ήχος γκολ της ΑΕΚ", style = body(15, FontWeight.ExtraBold))
+                            Text("Ήχος γκολ", style = body(15, FontWeight.ExtraBold))
                             Text("Ο ήχος του AEK Hub. Πάτα για να τον αλλάξεις ή να τον κλείσεις.", style = body(12, color = C.Muted).copy(lineHeight = 17.sp))
                         }
                         Text("Αλλαγή", style = body(13, FontWeight.ExtraBold, C.Gold))
                     }
-                    HorizontalDivider(Modifier.padding(start = 68.dp, end = 16.dp), thickness = 1.dp, color = C.Line)
-                    Toggle(Icons.Filled.Science, "Δοκιμαστικές ειδοποιήσεις", "Για συντάκτες: και οι ειδοποιήσεις των δοκιμαστικών αγώνων. Το κοινό δεν τις βλέπει ποτέ.", null, s.nTest, last = true) { scope.launch { prefs.setFlag("test", it) } }
                 }
             }
         }
@@ -228,7 +206,7 @@ fun MeScreen(openPost: (Long) -> Unit) {
             }
         }
         if (privacy) item {
-            Text("Ρυθμίσεις απορρήτου διαφημίσεων", Modifier.clickable { (ctx as? Activity)?.let { Ads.showPrivacy(it) } }.padding(vertical = 8.dp),
+            Text("Ρυθμίσεις απορρήτου (διαφημίσεις & στατιστικά)", Modifier.clickable { (ctx as? Activity)?.let { Ads.showPrivacy(it) } }.padding(vertical = 8.dp),
                 style = body(14, FontWeight.Bold, C.Gold))
         }
         if ((config?.socials ?: emptyList()).isNotEmpty()) item { SocialRow(config!!.socials) }
@@ -298,9 +276,9 @@ private fun sportIcon(k: String) = when (k) {
 private data class KindRow(val kind: String, val title: String, val sub: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
 private fun kindRows(sp: String): List<KindRow> = buildList {
     when (sp) {
-        "volleyball" -> { add(KindRow(Kinds.GOALS, "Σετ της ΑΕΚ", "Με ήχο, μόλις κερδίσει σετ η ΑΕΚ.", Icons.Filled.EmojiEvents)); add(KindRow(Kinds.OPP, "Σετ του αντιπάλου", "Κανονική ειδοποίηση, χωρίς τον ήχο γκολ.", Icons.Filled.Remove)) }
+        "volleyball" -> add(KindRow(Kinds.GOALS, "Κάθε σετ", "Μόλις τελειώνει σετ — για όποιον κι αν το κερδίσει.", Icons.Filled.EmojiEvents))
         in Kinds.NO_GOALS -> {}
-        else -> { add(KindRow(Kinds.GOALS, "Γκολ της ΑΕΚ", "Με τον ήχο γκολ του AEK Hub, τη στιγμή που μπαίνει.", Icons.Filled.EmojiEvents)); add(KindRow(Kinds.OPP, "Γκολ του αντιπάλου", "Κανονική ειδοποίηση, μαζί και τα ακυρωμένα γκολ.", Icons.Filled.Remove)) }
+        else -> add(KindRow(Kinds.GOALS, "Γκολ", "Τη στιγμή που μπαίνει — για την ΑΕΚ και για τον αντίπαλο (και αν ακυρωθεί).", Icons.Filled.EmojiEvents))
     }
     add(KindRow(Kinds.STARTEND, when (sp) { "basketball" -> "Τζάμπολ, δεκάλεπτα, τελικό"; "volleyball" -> "Έναρξη, κάθε σετ, τελικό"; "waterpolo" -> "Έναρξη, περίοδοι, τελικό"; else -> "Σέντρα, ημίχρονο, τελικό" },
         "Το τελικό έρχεται με σκόρερ και κουμπί για στιγμιότυπα και βαθμολογία.", Icons.Filled.Flag))

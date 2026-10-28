@@ -21,6 +21,7 @@ object Api {
 
     lateinit var http: OkHttpClient
         private set
+    fun isReady() = ::http.isInitialized
 
     private lateinit var dir: File
     private val mem = java.util.concurrent.ConcurrentHashMap<String, String>()
@@ -120,21 +121,6 @@ object Api {
             override fun onFailure(call: okhttp3.Call, e: IOException) {}
             override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) { response.close() }
         })
-    }
-    /** Δοκιμαστική ειδοποίηση προς αυτό το κινητό: επιστρέφει τι απάντησε ο server/η Google (διάγνωση στην οθόνη «Εγώ»). */
-    suspend fun pushTest(token: String): String = withContext(Dispatchers.IO) {
-        val req = Request.Builder().url("$BASE/push-test").post(("token=" + q(token)).toRequestBody("application/x-www-form-urlencoded".toMediaType())).build()
-        try {
-            http.newCall(req).execute().use { r ->
-                val b = r.body?.string().orEmpty()
-                val j = runCatching { json.parseToJsonElement(b) as? kotlinx.serialization.json.JsonObject }.getOrNull()
-                    ?: return@use "Ο server απάντησε HTTP ${r.code} (παλιά έκδοση plugin;)"
-                val ok = j["ok"]?.toString() == "true"
-                val err = (j["error"] as? kotlinx.serialization.json.JsonPrimitive)?.content.orEmpty()
-                if (ok) "✅ Στάλθηκε από τον server στη Google. Αν δεν εμφανιστεί σε λίγα δευτερόλεπτα, το πρόβλημα είναι στο κινητό (άδεια/οικονομία μπαταρίας)."
-                else "❌ " + (j["stage"] as? kotlinx.serialization.json.JsonPrimitive)?.content + ": " + err
-            }
-        } catch (e: Exception) { "❌ Δεν έφτασε στον server: " + (e.message ?: e.javaClass.simpleName) }
     }
     suspend fun standings(fresh: Boolean = false): StandingsList = json.decodeFromString(get("/standings", fresh))
 }

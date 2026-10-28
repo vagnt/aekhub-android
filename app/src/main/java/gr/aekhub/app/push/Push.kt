@@ -32,13 +32,12 @@ object Push {
         add("app_sync") // αθόρυβη άμεση ανανέωση περιεχομένου (χωρίς ειδοποίηση)
         if (!s.nAll) return@buildSet // γενικός διακόπτης κλειστός: καμία ειδοποίηση
         s.sports.forEach { sp ->
-            if (s.wants(sp, Kinds.GOALS) || s.wants(sp, Kinds.OPP)) add("m_${sp}_goals") // γκολ αντιπάλου: φιλτράρεται στο κινητό
+            if (s.wants(sp, Kinds.GOALS)) add("m_${sp}_goals")
             if (s.wants(sp, Kinds.STARTEND)) add("m_${sp}_startend")
             if (s.wants(sp, Kinds.CARDS)) add("m_${sp}_cards")
             if (s.wants(sp, Kinds.REMINDER)) add("m_${sp}_reminder")
         }
         if (s.nBreaking) add("news_breaking")
-        if (s.nTest) add("push_test") // δοκιμαστικοί αγώνες: μόνο για όσους το ανοίξουν
         s.matchAlerts.forEach { add("match_$it") }
     }
 
