@@ -382,11 +382,18 @@ object Notifs {
     }
 
     /** Ειδήσεις: ετικέτα (ΕΠΙΣΗΜΟ…), τίτλος, φωτογραφία, «Διάβασε» / «Αποθήκευση». */
+    /** Κατηγορία στην ειδοποίηση: μόνο «κανονική» — ποτέ οι σκιώδεις (Hero, Επικαιρότητα…)· αλλιώς τίποτα. */
+    private fun mainCat(c: String?): String? {
+        val n = c?.trim().orEmpty(); if (n.isEmpty()) return null
+        val k = java.text.Normalizer.normalize(n, java.text.Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "").uppercase()
+        return if (k in setOf("HERO", "ΕΠΙΚΑΙΡΟΤΗΤΑ", "ΑΡΘΡΟΓΡΑΦΙΑ", "ΣΑΝ ΣΗΜΕΡΑ", "ΧΩΡΙΣ ΚΑΤΗΓΟΡΙΑ", "UNCATEGORIZED", "VIDEO", "BREAKING NEWS")) null else n
+    }
+
     private fun news(ctx: Context, d: Map<String, String>) {
         val post = d["post"]?.toLongOrNull() ?: 0L
         val title = d["title"].orEmpty(); val body = d["body"].orEmpty()
         val label = d["label"].takeUnless { it.isNullOrBlank() }
-        val b = base(ctx, CH_NEWS, title, body).setSubText(label ?: d["cat"])
+        val b = base(ctx, CH_NEWS, title, body).setSubText(label ?: mainCat(d["cat"]))
         val open = if (post > 0) openPost(ctx, post) else PendingIntent.getActivity(ctx, 0, Intent(ctx, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         b.setContentIntent(open)
         crest(ctx, d["image"], 720)?.let { img ->
