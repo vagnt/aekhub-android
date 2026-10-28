@@ -148,7 +148,7 @@ fun CommentsSheet(postId: Long, title: String, onDismiss: () -> Unit) {
                 text = ""; replyTo = null; editName = false
                 notice = if (r.approved) "" else r.message.ifBlank { "Θα εμφανιστεί μόλις εγκριθεί." }
                 load(true, toBottom = true)
-            } else notice = "⚠ " + r.message.ifBlank { "Δεν στάλθηκε" }
+            } else { notice = "⚠ " + r.message.ifBlank { "Δεν στάλθηκε" }; load(true) } // ξαναφορτώνει: αν το σχόλιο μπήκε παρόλα αυτά, θα φανεί
         }
     }
 
