@@ -51,9 +51,26 @@ object CommentsApi {
     suspend fun list(ctx: Context, postId: Long, sort: String, page: Int): CPage =
         Api.json.decodeFromString(call(ctx, "comments/$postId?sort=$sort&page=$page", null))
 
-    suspend fun send(ctx: Context, postId: Long, author: String, text: String, parent: Long, elapsedMs: Long): CSent =
-        runCatching { Api.json.decodeFromString<CSent>(call(ctx, "comments/$postId", mapOf("author" to author, "comment" to text, "parent" to parent.toString(), "el" to elapsedMs.toString()))) }
-            .getOrElse { CSent(false, message = "Δεν στάλθηκε — έλεγξε τη σύνδεσή σου.") }
+    /** Αποστολή σχολίου. Ο server μπορεί να αργεί (έλεγχοι spam, ειδοποιήσεις)· δίνουμε χρόνο και, αν αποτύχει, λέμε ΑΚΡΙΒΩΣ τι έγινε. */
+    suspend fun send(ctx: Context, postId: Long, author: String, text: String, parent: Long, elapsedMs: Long): CSent = withContext(Dispatchers.IO) {
+        try {
+            val client = Api.http.newBuilder().readTimeout(60, java.util.concurrent.TimeUnit.SECONDS).callTimeout(75, java.util.concurrent.TimeUnit.SECONDS).build()
+            val form = FormBody.Builder().add("author", author).add("comment", text).add("parent", parent.toString()).add("el", elapsedMs.toString()).build()
+            val req = Request.Builder().url(base("comments/$postId")).header("X-Aek-Device", Device.id(ctx)).header("Cache-Control", "no-cache").post(form).build()
+            client.newCall(req).execute().use { r ->
+                val body = r.body?.string().orEmpty()
+                try { Api.json.decodeFromString<CSent>(body) }
+                catch (e: Exception) {
+                    val snip = body.replace(Regex("<[^>]*>"), " ").replace(Regex("\\s+"), " ").trim().take(90)
+                    CSent(false, message = "Ο server απάντησε HTTP ${r.code}" + (if (snip.isNotBlank()) " — $snip" else "") + ". Το σχόλιο ίσως μπήκε· δες αν εμφανίστηκε.")
+                }
+            }
+        } catch (e: java.net.SocketTimeoutException) {
+            CSent(false, message = "Ο server αργεί να απαντήσει — το σχόλιο ίσως μπήκε, δες αν εμφανίστηκε πριν το ξαναστείλεις.")
+        } catch (e: Exception) {
+            CSent(false, message = "Δεν στάλθηκε — πρόβλημα σύνδεσης (" + e.javaClass.simpleName + (e.message?.let { ": " + it.take(80) } ?: "") + ")")
+        }
+    }
 
     suspend fun like(ctx: Context, id: Long, on: Boolean): CMark =
         runCatching { Api.json.decodeFromString<CMark>(call(ctx, "comment/$id/like", mapOf("on" to if (on) "1" else ""))) }.getOrElse { CMark(false, message = "Χωρίς σύνδεση") }
