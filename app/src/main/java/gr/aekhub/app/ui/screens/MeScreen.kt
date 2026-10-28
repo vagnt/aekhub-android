@@ -160,7 +160,7 @@ fun MeScreen(openPost: (Long) -> Unit) {
                     Toggle(Icons.Filled.VisibilityOff, "Χωρίς spoilers", "Για όσους βλέπουν τον αγώνα αργότερα: οι ειδοποιήσεις δεν δείχνουν σκορ.", "ΑΕΚ – Ολυμπιακός · Νέα εξέλιξη", s.nSpoiler) { scope.launch { prefs.setFlag("spoiler", it) } }
                     Toggle(Icons.Filled.Bedtime, "Ήσυχες ώρες", "Από 01:00 έως 08:00 το κινητό δεν χτυπάει. Εξαίρεση: τα γκολ της ΑΕΚ.", null, s.nQuiet) { scope.launch { prefs.setFlag("quiet", it) } }
                     HorizontalDivider(Modifier.padding(start = 68.dp, end = 16.dp), thickness = 1.dp, color = C.Line)
-                    Toggle(Icons.Filled.Insights, "Ανώνυμα στατιστικά", "Βοηθούν να βελτιώνουμε το AEK Hub (ποια άρθρα και αγώνες διαβάζονται). Χωρίς προσωπικά στοιχεία — μπορείς να τα κλείσεις.", null, s.nStats) { scope.launch { prefs.setFlag("stats", it) } }
+                    Toggle(Icons.Filled.Insights, "Ανώνυμα στατιστικά", "Βοηθούν να βελτιώνουμε το AEK Hub (ποια άρθρα και αγώνες διαβάζονται). Χωρίς προσωπικά στοιχεία, μόνο αν έχεις δώσει συναίνεση στη φόρμα απορρήτου — και μπορείς να τα κλείσεις.", null, s.nStats) { scope.launch { prefs.setFlag("stats", it) } }
                     Row(
                         Modifier.fillMaxWidth().clickable {
                             runCatching { ctx.startActivity(Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName).putExtra(Settings.EXTRA_CHANNEL_ID, gr.aekhub.app.push.Notifs.CH_GOAL)) }
@@ -206,7 +206,7 @@ fun MeScreen(openPost: (Long) -> Unit) {
             }
         }
         if (privacy) item {
-            Text("Ρυθμίσεις απορρήτου διαφημίσεων", Modifier.clickable { (ctx as? Activity)?.let { Ads.showPrivacy(it) } }.padding(vertical = 8.dp),
+            Text("Ρυθμίσεις απορρήτου (διαφημίσεις & στατιστικά)", Modifier.clickable { (ctx as? Activity)?.let { Ads.showPrivacy(it) } }.padding(vertical = 8.dp),
                 style = body(14, FontWeight.Bold, C.Gold))
         }
         if ((config?.socials ?: emptyList()).isNotEmpty()) item { SocialRow(config!!.socials) }

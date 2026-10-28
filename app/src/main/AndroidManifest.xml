@@ -49,6 +49,11 @@
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="${admobAppId}" />
             <receiver android:name=".push.NotifReceiver" android:exported="false" />
+        <!-- Google Analytics: ΚΛΕΙΣΤΟ μέχρι να δοθεί συναίνεση (GDPR) — το ανοίγει ο κώδικας (Analytics.setConsent) -->
+        <meta-data android:name="firebase_analytics_collection_enabled" android:value="false" />
+        <meta-data android:name="google_analytics_default_allow_ad_storage" android:value="false" />
+        <meta-data android:name="google_analytics_default_allow_ad_user_data" android:value="false" />
+        <meta-data android:name="google_analytics_default_allow_ad_personalization_signals" android:value="false" />
         <!-- Το Google Analytics και οι διαφημίσεις δηλώνουν και τα δύο AD_SERVICES_CONFIG: κρατάμε αυτό των διαφημίσεων -->
         <property android:name="android.adservices.AD_SERVICES_CONFIG" android:resource="@xml/gma_ad_services_config" tools:replace="android:resource" />
     </application>

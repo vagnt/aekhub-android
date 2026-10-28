@@ -28,13 +28,28 @@ object Device {
  */
 object Analytics {
     private val seen = HashMap<String, Long>()
-    @Volatile var enabled = true
+    /** Ενεργό μόνο όταν υπάρχει συναίνεση (GDPR) ΚΑΙ δεν το έκλεισε ο χρήστης από «Εγώ». Μέχρι να ξέρουμε τη συναίνεση: κλειστό. */
+    @Volatile var enabled = false
+    @Volatile private var consentOk = false
+    @Volatile private var userOn = true
 
     private fun fb(ctx: Context): com.google.firebase.analytics.FirebaseAnalytics? =
         if (com.google.firebase.FirebaseApp.getApps(ctx).isNotEmpty()) runCatching { com.google.firebase.analytics.FirebaseAnalytics.getInstance(ctx.applicationContext) }.getOrNull() else null
 
     /** Ο διακόπτης «Ανώνυμα στατιστικά» της οθόνης «Εγώ»: κλείνει ΚΑΙ το Google Analytics ΚΑΙ τα δικά μας. */
-    fun setEnabled(ctx: Context, on: Boolean) { enabled = on; fb(ctx)?.setAnalyticsCollectionEnabled(on) }
+    fun setEnabled(ctx: Context, on: Boolean) { userOn = on; apply(ctx) }
+
+    /** Η συναίνεση από το Google UMP (η φόρμα του AdMob): ΕΕ/Ελλάδα → πρέπει να έχει δοθεί· αλλού → δεν απαιτείται. */
+    fun setConsent(ctx: Context, ok: Boolean) { consentOk = ok; apply(ctx) }
+
+    private fun apply(ctx: Context) {
+        val on = consentOk && userOn; enabled = on
+        fb(ctx)?.let { f ->
+            f.setConsent(mapOf(com.google.firebase.analytics.FirebaseAnalytics.ConsentType.ANALYTICS_STORAGE to
+                (if (on) com.google.firebase.analytics.FirebaseAnalytics.ConsentStatus.GRANTED else com.google.firebase.analytics.FirebaseAnalytics.ConsentStatus.DENIED)))
+            f.setAnalyticsCollectionEnabled(on)
+        }
+    }
 
     /** Άνοιξε οθόνη: screen_view στο GA + hit στο site. */
     fun screen(ctx: Context, name: String, kind: Int, oid: Long = 0L) {

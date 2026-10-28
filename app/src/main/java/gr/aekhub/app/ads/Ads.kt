@@ -121,9 +121,11 @@ object Ads {
         act = WeakReference(activity)
         adFreeUntil.value = prefs(activity).getLong("free_until", 0L)
         consent = UserMessagingPlatform.getConsentInformation(activity)
+        reportConsent(activity) // όσοι έχουν ήδη απαντήσει σε προηγούμενη φορά: δεν χάνεται ούτε η πρώτη οθόνη
         val params = ConsentRequestParameters.Builder().setTagForUnderAgeOfConsent(false).build()
         consent.requestConsentInfoUpdate(activity, params, {
             UserMessagingPlatform.loadAndShowConsentFormIfRequired(activity) { _ ->
+                reportConsent(activity)
                 privacyButton.value = consent.privacyOptionsRequirementStatus == ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED
                 if (consent.canRequestAds()) init(activity)
             }
@@ -138,7 +140,23 @@ object Ads {
         Thread { MobileAds.initialize(activity.applicationContext) { ready.value = true; preload() } }.start()
     }
 
+    /**
+     * Στα στατιστικά (Google Analytics) επιτρέπεται μόνο με συναίνεση: εκτός ΕΕ δεν απαιτείται· στην ΕΕ/Ελλάδα πρέπει να έχει δοθεί
+     * η συναίνεση στη φόρμα (TCF: σκοπός 1 «αποθήκευση στη συσκευή» και ένας από 7/8/9 «μέτρηση/ανάλυση»).
+     */
+    private fun reportConsent(ctx: Context) {
+        val st = consent.consentStatus
+        val ok = st == ConsentInformation.ConsentStatus.NOT_REQUIRED || (st == ConsentInformation.ConsentStatus.OBTAINED && tcfAnalytics(ctx))
+        gr.aekhub.app.data.Analytics.setConsent(ctx, ok)
+    }
+    private fun tcfAnalytics(ctx: Context): Boolean {
+        val pc = ctx.getSharedPreferences(ctx.packageName + "_preferences", Context.MODE_PRIVATE).getString("IABTCF_PurposeConsents", "").orEmpty()
+        fun p(n: Int) = pc.length >= n && pc[n - 1] == '1'
+        return p(1) && (p(7) || p(8) || p(9))
+    }
+
     fun showPrivacy(activity: Activity) = UserMessagingPlatform.showPrivacyOptionsForm(activity) { _ ->
+        reportConsent(activity)
         privacyButton.value = consent.privacyOptionsRequirementStatus == ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED
     }
 
