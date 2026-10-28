@@ -86,10 +86,8 @@ object Notifs {
         if (!Push.allowed(ctx)) return
         channels(ctx)
         val kind = d["kind"] ?: "breaking"
-        if (kind == "test") { news(ctx, d); return } // δοκιμή από «Εγώ» → περνά πάντα (και με τον γενικό διακόπτη κλειστό)
         if (!s.nAll) return // γενικός διακόπτης
         val id = d["match"]?.toLongOrNull() ?: 0L
-        val test = (d["title"] ?: "").startsWith("[Δοκιμή]")
 
         if (kind == "lineup") return // ενδεκάδες/πεντάδες: καμία ειδοποίηση (και αν έρθει από παλιότερο server)
         if (kind == "breaking") {
@@ -102,11 +100,7 @@ object Notifs {
         val sport = d["sport"] ?: "football"
         val explicit = id > 0 && id.toString() in s.matchAlerts
         val aekScored = d["aekScored"] == "1" || d["aek"].isNullOrEmpty()
-        val want = when (kind) {
-            "goals" -> if (d["ev"] == "goal" || d["ev"] == "set") (if (aekScored) Kinds.GOALS else Kinds.OPP) else Kinds.GOALS
-            else -> kind
-        }
-        val allowed = if (test) s.nTest else explicit || s.wants(sport, want)
+        val allowed = explicit || s.wants(sport, kind) // γκολ ΑΕΚ και αντιπάλου: ένα είδος «goals»
         if (!allowed) return
 
         // Ήσυχες ώρες 01:00–08:00: περνάνε μόνο τα γκολ της ΑΕΚ (και η αθόρυβη ζωντανή)
@@ -120,8 +114,8 @@ object Notifs {
         val liveNow = status !in setOf("", "upcoming", "finished", "postponed")
         when (kind) {
             "live" -> {} // χωρίς μόνιμη ειδοποίηση αγώνα
-            // Γκολ ΑΕΚ: δικός του ήχος. Γκολ αντιπάλου, ακύρωση, σετ, πέναλτι: κανονική ειδοποίηση (και ενημερώνεται και η ζωντανή)
-            "goals" -> goal(ctx, d, sp, loud = ev == "goal" && aekScored && d["aek"]?.isNotEmpty() == true && !sp)
+            // Γκολ (ΑΕΚ ή αντιπάλου — ίδια ειδοποίηση, ίδιος ήχος). Ακύρωση, σετ, πέναλτι: κανονική ειδοποίηση (και ενημερώνεται και η ζωντανή)
+            "goals" -> goal(ctx, d, sp, loud = ev == "goal" && !sp)
             "startend" -> when {
                 ev == "ft" -> final(ctx, d, sp)
                 ev == "postponed" -> event(ctx, d, sp, CH_MATCH, SLOT_LIVE)

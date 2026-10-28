@@ -164,6 +164,7 @@ fun ArticleScreen(id: Long, back: () -> Unit, openPost: (Long) -> Unit = {}) {
                     if (a != null && a.article && (i == 2 && blocks.size > 5 || i == blocks.size - 1)) BannerAd(a, medium = true, modifier = Modifier.padding(top = 16.dp), place = "article")
                 }
             }
+            item(key = "comments") { gr.aekhub.app.ui.components.CommentsSection(p.id) } // 💬 ίδια σχόλια με το site
             if (socials.isNotEmpty()) item(key = "socials") {
                 Box(Modifier.padding(horizontal = 16.dp)) { SocialRow(socials, "Συζήτησέ το μαζί μας") }
             }

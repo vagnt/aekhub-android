@@ -25,7 +25,6 @@ data class Settings(
     /** Έκτακτα μόνο από αυτές τις κατηγορίες (ονόματα)· άδειο = όλες. */
     val newsCats: Set<String> = emptySet(),
     val nQuiet: Boolean = false,
-    val nTest: Boolean = false,
     /** Γενικός διακόπτης: κλειστός = καμία ειδοποίηση από το AEK Hub. */
     val nAll: Boolean = true,
     /** «Χωρίς spoilers»: ειδοποιήσεις αγώνων χωρίς σκορ. */
@@ -42,7 +41,7 @@ object Kinds {
     const val LIVE = "live"; const val GOALS = "goals"; const val OPP = "opp"; const val STARTEND = "startend"
     const val CARDS = "cards"; const val REMINDER = "reminder"
     // Ενδεκάδες/πεντάδες: καμία ειδοποίηση (το ζήτησε ο χρήστης, 0.10.0)
-    val ALL = listOf(GOALS, OPP, STARTEND, REMINDER, CARDS)
+    val ALL = listOf(GOALS, STARTEND, REMINDER, CARDS) // «opp» (γκολ αντιπάλου) δεν υπάρχει πια: ΑΕΚ και αντίπαλος = ένα «Γκολ»
     val SPORTS = listOf("football", "basketball", "volleyball", "handball", "women_football", "futsal", "waterpolo")
     /** Τα «hot» αθλήματα: ενεργά από την αρχή. */
     val HOT = listOf("football", "women_football", "basketball", "volleyball", "handball")
@@ -53,14 +52,15 @@ object Kinds {
 fun defaultKinds(goals: Boolean = true, startEnd: Boolean = true, lineup: Boolean = false, cards: Boolean = false): Set<String> = buildSet {
     Kinds.SPORTS.forEach { sp ->
         add("$sp:${Kinds.REMINDER}")
-        if (goals) { add("$sp:${Kinds.GOALS}"); add("$sp:${Kinds.OPP}") }
+        if (goals) add("$sp:${Kinds.GOALS}")
         if (startEnd) add("$sp:${Kinds.STARTEND}")
         if (cards) add("$sp:${Kinds.CARDS}")
     }
 }
 
 /** Θέλει ο χρήστης αυτό το είδος σε αυτό το άθλημα; (γενικός διακόπτης + ακολουθεί το άθλημα + το είδος) */
-fun Settings.wants(sport: String, kind: String) = nAll && sport in sports && "$sport:$kind" in kinds
+fun Settings.wants(sport: String, kind: String) = nAll && sport in sports &&
+    ("$sport:$kind" in kinds || (kind == Kinds.GOALS && "$sport:${Kinds.OPP}" in kinds)) // παλιές ρυθμίσεις με «opp» μετράνε ως «Γκολ»
 
 /** Θα έρθουν ειδοποιήσεις για αυτόν τον αγώνα; (ακολουθείς το άθλημα ή το πάτησες, και δεν τον έχεις σιγάσει) */
 fun Settings.alertOn(id: Long, sport: String, aek: Boolean): Boolean {
@@ -81,7 +81,6 @@ class Prefs(private val ctx: Context) {
         val breaking = booleanPreferencesKey("n_breaking")
         val newsCats = stringSetPreferencesKey("news_cats")
         val quiet = booleanPreferencesKey("n_quiet")
-        val test = booleanPreferencesKey("n_test")
         val all = booleanPreferencesKey("n_all")
         val spoiler = booleanPreferencesKey("n_spoiler")
         val kinds = stringSetPreferencesKey("sport_kinds")
@@ -104,7 +103,6 @@ class Prefs(private val ctx: Context) {
             nBreaking = p[K.breaking] ?: d.nBreaking,
             newsCats = p[K.newsCats] ?: d.newsCats,
             nQuiet = p[K.quiet] ?: d.nQuiet,
-            nTest = p[K.test] ?: d.nTest,
             nAll = p[K.all] ?: d.nAll,
             nSpoiler = p[K.spoiler] ?: d.nSpoiler,
             // Πρώτη φορά με τις νέες ρυθμίσεις: από τις παλιές επιλογές του χρήστη
@@ -149,7 +147,7 @@ class Prefs(private val ctx: Context) {
     suspend fun setFlag(name: String, v: Boolean) = ctx.store.edit { p ->
         val key: Preferences.Key<Boolean> = when (name) {
             "goals" -> K.goals; "startEnd" -> K.startEnd; "lineup" -> K.lineup
-            "cards" -> K.cards; "breaking" -> K.breaking; "test" -> K.test
+            "cards" -> K.cards; "breaking" -> K.breaking
             "all" -> K.all; "spoiler" -> K.spoiler; else -> K.quiet
         }
         p[key] = v
@@ -158,7 +156,7 @@ class Prefs(private val ctx: Context) {
     /** Ένα είδος ειδοποίησης σε ένα άθλημα. */
     suspend fun setKind(sport: String, kind: String, on: Boolean) = ctx.store.edit { p ->
         val cur = p[K.kinds] ?: defaultKinds(p[K.goals] ?: true, p[K.startEnd] ?: true, p[K.lineup] ?: true, p[K.cards] ?: false)
-        p[K.kinds] = if (on) cur + "$sport:$kind" else cur - "$sport:$kind"
+        p[K.kinds] = if (on) cur + "$sport:$kind" else cur - "$sport:$kind" - (if (kind == Kinds.GOALS) "$sport:${Kinds.OPP}" else "")
     }
 
     /** Σίγαση αγώνα (από το κουμπί της ειδοποίησης). */
