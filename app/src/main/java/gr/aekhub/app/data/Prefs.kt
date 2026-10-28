@@ -29,6 +29,8 @@ data class Settings(
     val nAll: Boolean = true,
     /** «Χωρίς spoilers»: ειδοποιήσεις αγώνων χωρίς σκορ. */
     val nSpoiler: Boolean = false,
+    /** Ανώνυμα στατιστικά χρήσης (Google Analytics μέσω Firebase + στατιστικά του aekhub.gr). */
+    val nStats: Boolean = true,
     /** Τι θέλει ο χρήστης σε κάθε άθλημα: "football:goals", "basketball:live" κ.λπ. */
     val kinds: Set<String> = defaultKinds(),
     val matchAlerts: Set<String> = emptySet(),
@@ -83,6 +85,7 @@ class Prefs(private val ctx: Context) {
         val quiet = booleanPreferencesKey("n_quiet")
         val all = booleanPreferencesKey("n_all")
         val spoiler = booleanPreferencesKey("n_spoiler")
+        val stats = booleanPreferencesKey("n_stats")
         val kinds = stringSetPreferencesKey("sport_kinds")
         val matchAlerts = stringSetPreferencesKey("match_alerts")
         val muted = stringSetPreferencesKey("muted_matches")
@@ -105,6 +108,7 @@ class Prefs(private val ctx: Context) {
             nQuiet = p[K.quiet] ?: d.nQuiet,
             nAll = p[K.all] ?: d.nAll,
             nSpoiler = p[K.spoiler] ?: d.nSpoiler,
+            nStats = p[K.stats] ?: d.nStats,
             // Πρώτη φορά με τις νέες ρυθμίσεις: από τις παλιές επιλογές του χρήστη
             kinds = p[K.kinds] ?: defaultKinds(p[K.goals] ?: true, p[K.startEnd] ?: true, p[K.lineup] ?: true, p[K.cards] ?: false),
             matchAlerts = p[K.matchAlerts] ?: emptySet(),
@@ -148,7 +152,7 @@ class Prefs(private val ctx: Context) {
         val key: Preferences.Key<Boolean> = when (name) {
             "goals" -> K.goals; "startEnd" -> K.startEnd; "lineup" -> K.lineup
             "cards" -> K.cards; "breaking" -> K.breaking
-            "all" -> K.all; "spoiler" -> K.spoiler; else -> K.quiet
+            "all" -> K.all; "spoiler" -> K.spoiler; "stats" -> K.stats; else -> K.quiet
         }
         p[key] = v
     }

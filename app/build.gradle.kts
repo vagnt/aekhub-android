@@ -88,6 +88,7 @@ dependencies {
     implementation("org.jsoup:jsoup:1.18.1")
     implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
     implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.android.gms:play-services-ads:23.5.0")
     implementation("com.google.android.ump:user-messaging-platform:3.1.0")
     debugImplementation("androidx.compose.ui:ui-tooling")

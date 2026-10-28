@@ -131,7 +131,7 @@ fun CommentsSection(postId: Long) {
                         Device.setName(ctx, name.trim())
                         val r = CommentsApi.send(ctx, postId, name.trim(), text.trim(), replyTo?.id ?: 0L, System.currentTimeMillis() - opened)
                         sending = false
-                        if (r.ok) { text = ""; replyTo = null; notice = if (r.approved) "✓ Δημοσιεύτηκε" else r.message.ifBlank { "Θα εμφανιστεί μόλις εγκριθεί." }; load(true) }
+                        if (r.ok) { gr.aekhub.app.data.Analytics.event(ctx, "comment_post", "item_id" to postId); text = ""; replyTo = null; notice = if (r.approved) "✓ Δημοσιεύτηκε" else r.message.ifBlank { "Θα εμφανιστεί μόλις εγκριθεί." }; load(true) }
                         else notice = "⚠ " + r.message.ifBlank { "Δεν στάλθηκε" }
                     }
                 }.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {

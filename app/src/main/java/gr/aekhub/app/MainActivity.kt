@@ -112,7 +112,7 @@ class MainActivity : ComponentActivity() {
         val prefs = Prefs(applicationContext)
         if (savedInstanceState == null) readIntent(intent)
         // Οι επιλογές ειδοποιήσεων → θέματα στο Firebase, σε κάθε αλλαγή
-        lifecycleScope.launch { prefs.settings.collect { Push.sync(applicationContext, it) } }
+        lifecycleScope.launch { prefs.settings.collect { Push.sync(applicationContext, it); gr.aekhub.app.data.Analytics.setEnabled(applicationContext, it.nStats) } }
         setContent {
             AekTheme {
                 CompositionLocalProvider(LocalPrefs provides prefs) {
@@ -179,11 +179,11 @@ private fun AppRoot(deep: MutableStateFlow<Deep?>) {
     androidx.compose.runtime.LaunchedEffect(entry?.id) {
         val r = route ?: return@LaunchedEffect; val id = entry?.arguments?.getLong("id") ?: 0L
         when {
-            r == "home" -> gr.aekhub.app.data.Analytics.hit(ctx, 2)
-            r.startsWith("post/") -> gr.aekhub.app.data.Analytics.hit(ctx, 1, id)
-            r.startsWith("match/") -> gr.aekhub.app.data.Analytics.hit(ctx, 4, id)
-            r.startsWith("cat/") -> gr.aekhub.app.data.Analytics.hit(ctx, 3)
-            else -> gr.aekhub.app.data.Analytics.hit(ctx, 6)
+            r == "home" -> gr.aekhub.app.data.Analytics.screen(ctx, "Αρχική", 2)
+            r.startsWith("post/") -> gr.aekhub.app.data.Analytics.screen(ctx, "Άρθρο", 1, id)
+            r.startsWith("match/") -> gr.aekhub.app.data.Analytics.screen(ctx, "Αγώνας", 4, id)
+            r.startsWith("cat/") -> gr.aekhub.app.data.Analytics.screen(ctx, "Κατηγορία", 3)
+            else -> gr.aekhub.app.data.Analytics.screen(ctx, when (r) { "matches" -> "Αγώνες"; "standings" -> "Βαθμολογίες"; "me" -> "Εγώ"; "search" -> "Αναζήτηση"; "feed" -> "Ροή ειδήσεων"; else -> r.substringBefore('/') }, 6)
         }
     }
 
