@@ -303,7 +303,7 @@ private fun ScoreBox(v: String, aek: Boolean) = Box(
 private fun TeamCol(logo: String, name: String, aek: Boolean, modifier: Modifier) =
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Crest(logo, name, 66.dp)
-        Text(name.upperGr(), style = disp(19), color = if (aek) C.Gold else C.Text, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(name.upperGr(), style = disp(19), color = if (aek) C.Gold else C.Text, textAlign = TextAlign.Center, maxLines = 2, softWrap = name.trim().contains(' '), overflow = TextOverflow.Ellipsis)
     }
 
 @Composable

@@ -92,11 +92,11 @@ fun LiveBar(m: MatchCard, onClick: () -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Crest(m.homeLogo, m.home, 40.dp)
-                Text(m.home.upperGr(), style = disp(18), color = if (m.aek == "home") C.Gold else C.Text, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(m.home.upperGr(), style = disp(18), color = if (m.aek == "home") C.Gold else C.Text, maxLines = 2, softWrap = m.home.trim().contains(' '), overflow = TextOverflow.Ellipsis)
             }
             Text("${m.scoreHome.ifBlank { "0" }} : ${m.scoreAway.ifBlank { "0" }}", Modifier.padding(horizontal = 8.dp), style = disp(36, FontWeight.Black), color = C.Text)
             Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
-                Text(m.away.upperGr(), style = disp(18), color = if (m.aek == "away") C.Gold else C.Text, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.End)
+                Text(m.away.upperGr(), style = disp(18), color = if (m.aek == "away") C.Gold else C.Text, maxLines = 2, softWrap = m.away.trim().contains(' '), overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.End)
                 Crest(m.awayLogo, m.away, 40.dp)
             }
         }

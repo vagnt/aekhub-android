@@ -77,7 +77,7 @@ fun matchMeta(m: MatchCard) = listOf(m.sportLabel, m.competition).filter { it.is
 private fun TeamCell(logo: String, name: String, aek: Boolean, modifier: Modifier) =
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Crest(logo, name, 48.dp)
-        Text(name.upperGr(), style = disp(16), color = if (aek) C.Gold else C.Text, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(name.upperGr(), style = disp(16), color = if (aek) C.Gold else C.Text, textAlign = TextAlign.Center, maxLines = 2, softWrap = name.trim().contains(' '), overflow = TextOverflow.Ellipsis)
     }
 
 /** Κεντρικό κομμάτι: ώρα, σκορ ή LIVE. */
