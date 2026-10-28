@@ -115,6 +115,9 @@ fun ArticleScreen(id: Long, back: () -> Unit, openPost: (Long) -> Unit = {}) {
         type = "text/plain"; putExtra(Intent.EXTRA_SUBJECT, p.title); putExtra(Intent.EXTRA_TEXT, p.title + "\n" + p.link)
     }, "Κοινοποίηση")) }
 
+    var showComments by androidx.compose.runtime.remember(p.id) { androidx.compose.runtime.mutableStateOf(false) }
+    if (showComments) gr.aekhub.app.ui.components.CommentsSheet(p.id, p.title) { showComments = false } // 💬 σχόλια σε pop up, στυλ chat
+
     Box(Modifier.fillMaxSize()) {
         androidx.compose.material3.pulltorefresh.PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; fresh = true; key++ }, modifier = Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(bottom = 110.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -165,7 +168,6 @@ fun ArticleScreen(id: Long, back: () -> Unit, openPost: (Long) -> Unit = {}) {
                     if (a != null && a.article && (i == 2 && blocks.size > 5 || i == blocks.size - 1)) BannerAd(a, medium = true, modifier = Modifier.padding(top = 16.dp), place = "article")
                 }
             }
-            item(key = "comments") { gr.aekhub.app.ui.components.CommentsSection(p.id) } // 💬 ίδια σχόλια με το site
             if (socials.isNotEmpty()) item(key = "socials") {
                 Box(Modifier.padding(horizontal = 16.dp)) { SocialRow(socials, "Συζήτησέ το μαζί μας") }
             }
@@ -204,15 +206,20 @@ fun ArticleScreen(id: Long, back: () -> Unit, openPost: (Long) -> Unit = {}) {
             RoundBtn(Icons.Filled.Share, "Κοινοποίηση", C.Text) { share() }
         }
 
-        // Κάτω κουμπί κοινοποίησης
+        // Κάτω κουμπιά: 💬 Σχόλια (ανοίγει pop up) + Κοινοποίηση
         Row(
-            Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(16.dp).height(48.dp)
-                .clip(RoundedCornerShape(24.dp)).background(C.Gold).clickable { share() }.padding(horizontal = 18.dp),
-            horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
+            Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Filled.Share, null, tint = C.Ink, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.size(8.dp))
-            Text("Κοινοποίηση", style = body(15, FontWeight.ExtraBold, C.Ink))
+            gr.aekhub.app.ui.components.CommentsButton(p.id) { showComments = true }
+            Row(
+                Modifier.height(48.dp).clip(RoundedCornerShape(24.dp)).background(C.Gold).clickable { share() }.padding(horizontal = 18.dp),
+                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Filled.Share, null, tint = C.Ink, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.size(8.dp))
+                Text("Κοινοποίηση", style = body(15, FontWeight.ExtraBold, C.Ink))
+            }
         }
     }
 }
