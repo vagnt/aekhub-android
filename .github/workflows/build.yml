@@ -18,10 +18,25 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
+      # Κλειδί upload για το Play Store (GitHub secrets). Χωρίς αυτό: μόνο APK, χωρίς AAB.
+      # Το APK των Releases μένει με το κλειδί δοκιμών, ώστε να εγκαθίσταται πάνω στα προηγούμενα.
+      - name: Upload key
+        env:
+          KS: ${{ secrets.AEK_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KS" ]; then
+            echo "$KS" | base64 -d > "$RUNNER_TEMP/upload.jks"
+            echo "PLAY_KS=$RUNNER_TEMP/upload.jks" >> $GITHUB_ENV
+          fi
       - name: Build
+        env:
+          AEK_KEYSTORE_PASS: ${{ secrets.AEK_KEYSTORE_PASS }}
+          AEK_KEY_ALIAS: ${{ secrets.AEK_KEY_ALIAS }}
+          AEK_KEY_PASS: ${{ secrets.AEK_KEY_PASS }}
         run: |
           set -o pipefail
           ./gradlew --no-daemon assembleRelease 2>&1 | tee build.log
+          if [ -n "$PLAY_KS" ]; then AEK_KEYSTORE="$PLAY_KS" ./gradlew --no-daemon bundleRelease 2>&1 | tee -a build.log; fi
       - name: Errors
         if: failure()
         run: |
@@ -32,14 +47,23 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk "AEKHub-$V-build${{ github.run_number }}.apk"
           echo "APK=AEKHub-$V-build${{ github.run_number }}.apk" >> $GITHUB_ENV
           echo "VER=$V" >> $GITHUB_ENV
+          # Το αρχείο για το Play Store (μόνο όταν υπογράφεται με το κλειδί upload)
+          if [ -n "$PLAY_KS" ]; then
+            cp app/build/outputs/bundle/release/app-release.aab "AEKHub-$V-build${{ github.run_number }}.aab"
+            echo "AAB=AEKHub-$V-build${{ github.run_number }}.aab" >> $GITHUB_ENV
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: apk
-          path: ${{ env.APK }}
+          path: |
+            ${{ env.APK }}
+            ${{ env.AAB }}
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: AEK Hub ${{ env.VER }} (build ${{ github.run_number }})
           prerelease: true
-          files: ${{ env.APK }}
+          files: |
+            ${{ env.APK }}
+            ${{ env.AAB }}
