@@ -209,6 +209,11 @@ fun MeScreen(openPost: (Long) -> Unit) {
             Text("Ρυθμίσεις απορρήτου (διαφημίσεις & στατιστικά)", Modifier.clickable { (ctx as? Activity)?.let { Ads.showPrivacy(it) } }.padding(vertical = 8.dp),
                 style = body(14, FontWeight.Bold, C.Gold))
         }
+        // Απαίτηση Google Play: η πολιτική απορρήτου και μέσα στην εφαρμογή
+        item {
+            Text("Πολιτική απορρήτου", Modifier.clickable { runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(BuildConfig.SITE + "/politiki-aporritou/"))) } }.padding(vertical = 8.dp),
+                style = body(14, FontWeight.Bold, C.Gold))
+        }
         if ((config?.socials ?: emptyList()).isNotEmpty()) item { SocialRow(config!!.socials) }
         item { Text("AEK Hub " + BuildConfig.VERSION_NAME, Modifier.padding(top = 12.dp), style = body(12, color = C.Muted)) }
         item {
