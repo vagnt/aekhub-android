@@ -68,8 +68,12 @@ fun SearchScreen(back: () -> Unit, openPost: (Long) -> Unit) {
         when {
             busy && res == null -> Loading()
             res?.isEmpty() == true -> Text("Δεν βρέθηκαν άρθρα.", Modifier.padding(24.dp), style = body(15, color = C.Muted))
-            else -> LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(res ?: emptyList(), key = { it.id }) { p -> PostRow(p) { openPost(p.id) } }
+            else -> androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                androidx.compose.foundation.lazy.grid.GridCells.Adaptive(300.dp), contentPadding = PaddingValues(if (gr.aekhub.app.ui.win().wide) 24.dp else 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp), horizontalArrangement = Arrangement.spacedBy(24.dp),
+            ) {
+                val list = res ?: emptyList()
+                items(list.size, key = { list[it].id }) { i -> val p = list[i]; PostRow(p) { openPost(p.id) } }
             }
         }
     }

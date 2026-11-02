@@ -42,8 +42,8 @@ import gr.aekhub.app.ui.theme.body
 import gr.aekhub.app.ui.theme.disp
 
 @Composable
-fun FeaturedCard(p: PostCard, onClick: () -> Unit) {
-    Box(Modifier.fillMaxWidth().height(300.dp).clip(RoundedCornerShape(20.dp)).background(C.Panel).clickable(onClick = onClick)) {
+fun FeaturedCard(p: PostCard, height: androidx.compose.ui.unit.Dp = 300.dp, onClick: () -> Unit) {
+    Box(Modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(20.dp)).background(C.Panel).clickable(onClick = onClick)) {
         if (p.image.isNotBlank()) AsyncImage(p.image, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.3f to Color.Transparent, 0.7f to C.Ink.copy(alpha = 0.92f), 1f to C.Ink)))
         if (p.video) PlayBadge(Modifier.align(Alignment.TopEnd).padding(14.dp), 46.dp)

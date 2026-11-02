@@ -26,7 +26,11 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -41,6 +45,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
+import androidx.compose.material3.VerticalDivider
+import androidx.compose.ui.res.painterResource
+import gr.aekhub.app.ui.RAIL
+import gr.aekhub.app.ui.win
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -194,10 +205,12 @@ private fun AppRoot(deep: MutableStateFlow<Deep?>) {
     val openPost = { id: Long -> nav.navigate("post/$id") }
     val openMatch = { id: Long -> nav.navigate("match/$id") }
 
+    // Tablet / οριζόντια: το μενού γίνεται κάθετη μπάρα αριστερά (και μένει και στα άρθρα/αγώνες)
+    val tablet = win().wide
     Scaffold(
         containerColor = C.Ink,
         bottomBar = {
-            if (showBar) Column {
+            if (showBar && !tablet) Column {
                 HorizontalDivider(thickness = 1.dp, color = C.Line)
                 NavigationBar(containerColor = C.Ink2, tonalElevation = 0.dp) {
                     TABS.forEach { t ->
@@ -216,7 +229,27 @@ private fun AppRoot(deep: MutableStateFlow<Deep?>) {
             }
         },
     ) { pad ->
-        Box(Modifier.fillMaxSize().background(C.Ink).padding(pad)) {
+        Row(Modifier.fillMaxSize().background(C.Ink).padding(pad)) {
+        if (tablet) {
+            NavigationRail(Modifier.width(RAIL).fillMaxHeight(), containerColor = C.Ink2, header = {
+                Image(painterResource(R.drawable.logo), "AEK Hub", Modifier.padding(top = 14.dp, bottom = 18.dp).width(64.dp))
+            }) {
+                TABS.forEach { t ->
+                    val on = route == t.route
+                    NavigationRailItem(
+                        selected = on, onClick = { goTab(t.route) },
+                        icon = { Icon(t.icon, null, Modifier.size(24.dp)) },
+                        label = { Text(t.label, style = body(11, if (on) FontWeight.ExtraBold else FontWeight.Bold)) },
+                        colors = NavigationRailItemDefaults.colors(
+                            selectedIconColor = C.Gold, selectedTextColor = C.Gold, indicatorColor = C.Gold.copy(alpha = 0.14f),
+                            unselectedIconColor = C.Muted, unselectedTextColor = C.Muted,
+                        ),
+                    )
+                }
+            }
+            VerticalDivider(thickness = 1.dp, color = C.Line)
+        }
+        Box(Modifier.weight(1f).fillMaxHeight()) {
             NavHost(nav, startDestination = "home") {
                 composable("home") {
                     HomeScreen(openPost, openMatch, { nav.navigate("search") }, { goTab("me") }, { nav.navigate("feed") }, { goTab("matches") },
@@ -242,6 +275,7 @@ private fun AppRoot(deep: MutableStateFlow<Deep?>) {
             }
             // Γκολ / έναρξη / τελικό της ΑΕΚ: banner πάνω-πάνω σε κάθε οθόνη
             gr.aekhub.app.ui.components.LiveScoreBanner(openMatch)
+        }
         }
     }
 }
