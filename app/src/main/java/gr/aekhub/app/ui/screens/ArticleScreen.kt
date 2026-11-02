@@ -170,7 +170,7 @@ fun ArticleScreen(id: Long, back: () -> Unit, openPost: (Long) -> Unit = {}) {
                 Column(Modifier.offset(y = if (p.videoInfo != null) 0.dp else (-40).dp)) {
                     BlockView(blocks[i], scale)
                     val a = ads
-                    if (a != null && a.article && (i == 2 && blocks.size > 5 || i == blocks.size - 1)) BannerAd(a, medium = true, modifier = Modifier.padding(top = 16.dp), place = "article")
+                    if (a != null && a.article && (i == 2 && blocks.size > 5 || i == 7 && blocks.size > 11 || i == blocks.size - 1)) BannerAd(a, medium = true, modifier = Modifier.padding(top = 16.dp), place = "article")
                 }
             }
             if (socials.isNotEmpty()) item(key = "socials") {

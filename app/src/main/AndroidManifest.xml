@@ -43,7 +43,7 @@
             android:resource="@color/gold" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="news" />
+            android:value="news2" />
 
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"

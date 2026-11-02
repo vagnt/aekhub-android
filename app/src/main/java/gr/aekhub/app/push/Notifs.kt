@@ -35,15 +35,14 @@ import java.time.ZoneId
  *    στο Android 16 προωθείται σε Live Update (σκορ στη γραμμή κατάστασης)
  *  • γκολ της ΑΕΚ: δυνατή ειδοποίηση με τον ήχο του AEK Hub· όλα τα άλλα αθόρυβα
  *  • σήματα ομάδων αντί για emoji, κουμπιά (Δες το γκολ, Match Center, Σίγαση, Αποθήκευση)
- *  • «Χωρίς spoilers»: χωρίς σκορ στις ειδοποιήσεις
  */
 object Notifs {
     // Κανάλια (ο χρήστης τα ρυθμίζει και από τις ρυθμίσεις του Android)
     const val CH_LIVE = "live_match"
-    const val CH_GOAL = "aek_score" // νέο κανάλι στο 0.9.1: ο ήχος ενός καναλιού δεν αλλάζει μετά τη δημιουργία του
-    const val CH_MATCH = "matchday"
+    const val CH_GOAL = "aek_score2" // νέα κανάλια στο 0.14.0 (νέος ήχος): ο ήχος ενός καναλιού δεν αλλάζει μετά τη δημιουργία του
+    const val CH_MATCH = "matchday2"
     const val CH_QUIET = "match_quiet"
-    const val CH_NEWS = "news"
+    const val CH_NEWS = "news2"
 
     // Θέσεις μέσα σε κάθε αγώνα (ίδιο tag "m<id>": η νέα αντικαθιστά την παλιά του ίδιου είδους)
     private const val SLOT_LIVE = 1
@@ -62,22 +61,27 @@ object Notifs {
         if (Build.VERSION.SDK_INT < 26) return
         val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
         runCatching { nm.deleteNotificationChannel("matches") } // παλιό κανάλι (έως 0.8)
+        for (old in listOf("aek_score", "matchday", "news")) runCatching { nm.deleteNotificationChannel(old) } // παλιά κανάλια με τον παλιό ήχο (έως 0.13)
         runCatching { nm.deleteNotificationChannel("goal_aek") } // παλιός ήχος κόρνας (0.9.0)
         runCatching { nm.deleteNotificationChannel(CH_LIVE) } // η μόνιμη ειδοποίηση αγώνα καταργήθηκε (0.9.4) — φεύγει και όποια έχει μείνει
         nm.createNotificationChannel(NotificationChannel(CH_GOAL, "Σκορ της ΑΕΚ", NotificationManager.IMPORTANCE_HIGH).apply {
             description = "Γκολ, καλάθι ή σετ της ΑΕΚ, με τον ήχο του AEK Hub"
-            setSound(Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.aek_chime),
+            setSound(Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.aek_sound),
                 AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
             enableVibration(true); vibrationPattern = longArrayOf(0, 120, 80, 120)
         })
         nm.createNotificationChannel(NotificationChannel(CH_MATCH, "Ημέρα αγώνα", NotificationManager.IMPORTANCE_DEFAULT).apply {
-            description = "Υπενθύμιση, ενδεκάδα, σέντρα, τελικό"
+            description = "Υπενθύμιση, σέντρα, ημίχρονο, τελικό"
+            setSound(Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.aek_sound),
+                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
         })
         nm.createNotificationChannel(NotificationChannel(CH_QUIET, "Εξελίξεις αγώνα (αθόρυβα)", NotificationManager.IMPORTANCE_LOW).apply {
             description = "Γκολ αντιπάλου, ημίχρονο, κάρτες"
         })
         nm.createNotificationChannel(NotificationChannel(CH_NEWS, "Ειδήσεις", NotificationManager.IMPORTANCE_DEFAULT).apply {
             description = "Έκτακτα και σημαντικά άρθρα"
+            setSound(Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.aek_sound),
+                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
         })
     }
 
@@ -108,7 +112,7 @@ object Notifs {
             if (LocalTime.now(ZoneId.of("Europe/Athens")).hour in 1..7) return
         }
 
-        val sp = s.nSpoiler
+        val sp = false // «Χωρίς spoilers» καταργήθηκε (0.14.0): οι ειδοποιήσεις έχουν πάντα σκορ
         val ev = d["ev"] ?: ""
         val status = d["status"] ?: ""
         val liveNow = status !in setOf("", "upcoming", "finished", "postponed")
@@ -152,6 +156,10 @@ object Notifs {
         if (bmp != null) crestCache[url] = bmp
         return bmp
     }
+
+    /** Το λογότυπο «hub» (έγχρωμο, κίτρινο με μαύρα γράμματα) για ειδοποιήσεις χωρίς σήμα ομάδας ή φωτογραφία. */
+    private var hub: Bitmap? = null
+    private fun hubLogo(ctx: Context): Bitmap? = hub ?: runCatching { android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.hub_logo) }.getOrNull().also { hub = it }
 
     /** Το σήμα ολόκληρο, με τις αναλογίες του, στο κέντρο ενός τετραγώνου με διάφανο περιθώριο (για να μην κόβεται στο στρογγύλεμα). */
     private fun fitCrest(dr: android.graphics.drawable.Drawable, size: Int, fill: Float): Bitmap {
@@ -251,7 +259,7 @@ object Notifs {
             .setContentIntent(openMatch(ctx, id, 1))
             .addAction(0, "Match Center", openMatch(ctx, id, 2))
         if (!done) b.addAction(muteAction(ctx, id))
-        crest(ctx, aekLogo(d))?.let { b.setLargeIcon(it) }
+        b.setLargeIcon(crest(ctx, aekLogo(d)) ?: hubLogo(ctx))
         // Μπάρα αγώνα: ποδόσφαιρο/futsal/πόλο με το λεπτό, μπάσκετ με το δεκάλεπτο
         var rich: Any? = null
         if (!done) {
@@ -325,7 +333,7 @@ object Notifs {
             .setCategory(NotificationCompat.CATEGORY_EVENT)
             .setPriority(if (loud) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
             .setTimeoutAfter(20 * 60_000L)
-        if (!spoiler) crest(ctx, logo)?.let { b.setLargeIcon(it) }
+        if (!spoiler) b.setLargeIcon(crest(ctx, logo) ?: hubLogo(ctx))
         if (d["hl"] == "1" && d["ev"] == "goal") b.addAction(0, "Δες το γκολ", openMatch(ctx, id, 4))
         b.addAction(0, "Match Center", openMatch(ctx, id, 2))
         post(ctx, tag(id), SLOT_GOAL, b)
@@ -341,7 +349,7 @@ object Notifs {
             .setSubText(d["comp"])
             .setContentIntent(openMatch(ctx, id, 5))
             .setTimeoutAfter(12 * 3_600_000L)
-        if (!spoiler) crest(ctx, aekLogo(d))?.let { b.setLargeIcon(it) }
+        if (!spoiler) b.setLargeIcon(crest(ctx, aekLogo(d)) ?: hubLogo(ctx))
         if (d["hl"] == "1") b.addAction(0, "Στιγμιότυπα", openMatch(ctx, id, 6))
         b.addAction(0, "Βαθμολογία", openTab(ctx, "standings", 9001))
         NotificationManagerCompat.from(ctx).cancel(tag(id), SLOT_GOAL)
@@ -355,7 +363,7 @@ object Notifs {
         val text = if (spoiler && !reveal) "Νέα εξέλιξη στον αγώνα. Πάτα για να τη δεις." else d["body"].orEmpty()
         val b = base(ctx, ch, title, text).setSubText(d["comp"]).setContentIntent(openMatch(ctx, id, 3))
             .addAction(0, "Match Center", openMatch(ctx, id, 2))
-        if (!spoiler) crest(ctx, if (d["side"] == "away") d["alogo"] else if (d["side"] == "home") d["hlogo"] else aekLogo(d))?.let { b.setLargeIcon(it) }
+        if (!spoiler) b.setLargeIcon(crest(ctx, if (d["side"] == "away") d["alogo"] else if (d["side"] == "home") d["hlogo"] else aekLogo(d)) ?: hubLogo(ctx))
         if (slot == SLOT_LIVE) b.addAction(muteAction(ctx, id))
         post(ctx, tag(id), slot, b)
     }
@@ -366,7 +374,7 @@ object Notifs {
             .setSubText(d["comp"]).setContentIntent(openMatch(ctx, id, 3))
             .addAction(0, "Συνθέσεις", openMatch(ctx, id, 8))
             .addAction(0, "Match Center", openMatch(ctx, id, 2))
-        crest(ctx, aekLogo(d))?.let { b.setLargeIcon(it) }
+        b.setLargeIcon(crest(ctx, aekLogo(d)) ?: hubLogo(ctx))
         post(ctx, tag(id), SLOT_LINEUP, b)
     }
 
@@ -377,7 +385,7 @@ object Notifs {
             .addAction(0, "Match Center", openMatch(ctx, id, 2))
             .addAction(muteAction(ctx, id))
             .setTimeoutAfter(60 * 60_000L)
-        crest(ctx, aekLogo(d))?.let { b.setLargeIcon(it) }
+        b.setLargeIcon(crest(ctx, aekLogo(d)) ?: hubLogo(ctx))
         post(ctx, tag(id), SLOT_REMIND, b)
     }
 
@@ -396,6 +404,7 @@ object Notifs {
         val b = base(ctx, CH_NEWS, title, body).setSubText(label ?: mainCat(d["cat"]))
         val open = if (post > 0) openPost(ctx, post) else PendingIntent.getActivity(ctx, 0, Intent(ctx, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         b.setContentIntent(open)
+        b.setLargeIcon(hubLogo(ctx)) // χωρίς φωτογραφία: το λογότυπο hub
         crest(ctx, d["image"], 720)?.let { img ->
             b.setLargeIcon(img).setStyle(NotificationCompat.BigPictureStyle().bigPicture(img).bigLargeIcon(null as Bitmap?).setSummaryText(body))
         }

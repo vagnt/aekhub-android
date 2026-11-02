@@ -157,7 +157,6 @@ fun MeScreen(openPost: (Long) -> Unit) {
             }
             item {
                 Group("ΓΕΝΙΚΑ") {
-                    Toggle(Icons.Filled.VisibilityOff, "Χωρίς spoilers", "Για όσους βλέπουν τον αγώνα αργότερα: οι ειδοποιήσεις δεν δείχνουν σκορ.", "ΑΕΚ – Ολυμπιακός · Νέα εξέλιξη", s.nSpoiler) { scope.launch { prefs.setFlag("spoiler", it) } }
                     Toggle(Icons.Filled.Bedtime, "Ήσυχες ώρες", "Από 01:00 έως 08:00 το κινητό δεν χτυπάει. Εξαίρεση: τα γκολ της ΑΕΚ.", null, s.nQuiet) { scope.launch { prefs.setFlag("quiet", it) } }
                     HorizontalDivider(Modifier.padding(start = 68.dp, end = 16.dp), thickness = 1.dp, color = C.Line)
                     Toggle(Icons.Filled.Insights, "Ανώνυμα στατιστικά", "Βοηθούν να βελτιώνουμε το AEK Hub (ποια άρθρα και αγώνες διαβάζονται). Χωρίς προσωπικά στοιχεία, μόνο αν έχεις δώσει συναίνεση στη φόρμα απορρήτου — και μπορείς να τα κλείσεις.", null, s.nStats) { scope.launch { prefs.setFlag("stats", it) } }
