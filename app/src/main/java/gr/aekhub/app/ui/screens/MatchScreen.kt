@@ -152,7 +152,10 @@ fun MatchScreen(id: Long, back: () -> Unit) {
         item(key = "hero") {
             Hero(d, alert, back) { if (!settings.nAll) android.widget.Toast.makeText(ctx, "Οι ειδοποιήσεις είναι κλειστές. Άνοιξέ τες από το «Εγώ».", android.widget.Toast.LENGTH_LONG).show() else scope.launch { prefs.toggleMatchAlert(d.id, alert) } }
         }
-        item(key = "presented") { gr.aekhub.app.ads.PresentedBy("match", Modifier.padding(horizontal = 16.dp)) }
+        item(key = "presented") {
+            val sp = d.sponsor
+            if (sp != null) SponsorBlock(d.id, sp, ::open) else gr.aekhub.app.ads.PresentedBy("match", Modifier.padding(horizontal = 16.dp))
+        }
         d.stream?.let { s -> item(key = "stream") { StreamCard(s.thumb, s.label, s.kicker, s.state, if (playStream && s.embed.isNotBlank()) s.embed else null) { if (s.embed.isNotBlank()) playStream = true else open(s.url) } } }
         if (d.highlights.isNotEmpty()) item(key = "hl") {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -588,4 +591,26 @@ private fun PlayerLine(p: Player, aek: Boolean) = Row(verticalAlignment = Alignm
     Text(p.number, Modifier.width(22.dp), style = disp(16, FontWeight.Black), color = if (aek) C.Gold else C.Muted)
     Text(p.name + if (p.captain) " (Κ)" else "", Modifier.weight(1f, false), style = body(13, FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
     if (p.rating > 0f) RatingBadge(p.rating)
+}
+
+
+/* ─────────── 🤝 Χορηγός: «Powered by» από πάνω, λογότυπο μεγάλο και ελεύθερο (ρυθμίζεται από το backend) ─────────── */
+@Composable
+private fun SponsorBlock(matchId: Long, s: gr.aekhub.app.data.Sponsor, open: (String) -> Unit) {
+    // μία εμφάνιση ανά αγώνα όσο μένει ανοιχτή η οθόνη
+    LaunchedEffect(matchId) { Api.ping(s.view) }
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp).clickable(enabled = s.click.isNotBlank()) { open(s.click) },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(s.label, style = body(12, FontWeight.SemiBold, C.Muted))
+        if (s.logo.isNotBlank()) {
+            val mod = if (s.w > 0) Modifier.height(s.h.dp).width(s.w.dp) else Modifier.height(s.h.dp)
+            AsyncImage(s.logo, s.name.ifBlank { "Χορηγός" }, mod, contentScale = ContentScale.Fit)
+        } else if (s.name.isNotBlank()) {
+            Text(s.name, style = body(22, FontWeight.ExtraBold, C.Text))
+        }
+        if (s.note.isNotBlank()) Text(s.note, style = body(11, FontWeight.Normal, C.Muted))
+    }
 }

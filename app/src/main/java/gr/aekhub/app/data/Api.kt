@@ -122,5 +122,13 @@ object Api {
             override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) { response.close() }
         })
     }
+    /** Μέτρηση εμφάνισης χορηγού (GET σε διεύθυνση του site)· αθόρυβα, χωρίς αποτέλεσμα. */
+    fun ping(url: String) {
+        if (!::http.isInitialized || !url.startsWith("http")) return
+        http.newCall(Request.Builder().url(url).build()).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {}
+            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) { response.close() }
+        })
+    }
     suspend fun standings(fresh: Boolean = false): StandingsList = json.decodeFromString(get("/standings", fresh))
 }
