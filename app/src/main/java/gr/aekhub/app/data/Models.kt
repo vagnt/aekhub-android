@@ -230,6 +230,8 @@ data class MatchDetail(
     val scorersAway: List<String> = emptyList(),
     val stream: StreamInfo? = null,
     val highlights: List<Highlight> = emptyList(),
+    /** 🤝 «Powered by» από το Match Center → Χορηγός (ίδια ρύθμιση με το site) */
+    val sponsor: Sponsor? = null,
     val pitch: Pitch? = null,
     /** Ανάλυση: διαβάζεται χωριστά (`ext`), ώστε ένα απρόσμενο πεδίο να μη χαλάει όλη την οθόνη του αγώνα */
     val extra: kotlinx.serialization.json.JsonElement? = null,
@@ -267,6 +269,10 @@ data class Shot(val side: String = "home", val x: Float = 50f, val y: Float = 50
 
 @Serializable
 data class StreamInfo(val url: String, val embed: String = "", val thumb: String = "", val label: String = "", val kicker: String = "", val state: String = "pre")
+
+/** Χορηγός αγώνα: h/w σε dp (0 = αυτόματο πλάτος), click/view = διευθύνσεις μέτρησης του site */
+@Serializable
+data class Sponsor(val label: String = "Powered by", val name: String = "", val logo: String = "", val note: String = "", val h: Int = 42, val w: Int = 0, val click: String = "", val view: String = "")
 
 @Serializable
 data class Highlight(val title: String = "", val url: String, val embed: String = "", val thumb: String = "")
