@@ -182,8 +182,14 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
                     }
                     val topBeside = w == gr.aekhub.app.ui.Win.Expanded && lh == null && h.featured != null
                     if (h.top.isNotEmpty() && !topBeside) {
+                        val ads = config?.ads
                         item(key = "toph") { GoldHeader("Τελευταία νέα", Modifier.padding(top = 8.dp), "Ροή ειδήσεων", openFeed) }
-                        if (cols == 1) items(h.top, key = { "t" + it.id }) { p -> PostRow(p) { openPost(p.id) } }
+                        if (cols == 1) {
+                            items(h.top.take(3), key = { "t" + it.id }) { p -> PostRow(p) { openPost(p.id) } }
+                            // μία διαφήμιση μέσα στη ροή των τελευταίων, μετά το 3ο άρθρο
+                            if (ads != null && h.top.size > 3) item(key = "adtop") { BannerAd(ads, place = "home") }
+                            items(h.top.drop(3), key = { "t" + it.id }) { p -> PostRow(p) { openPost(p.id) } }
+                        }
                         else items(h.top.chunked(2), key = { "t" + it.first().id }) { pair ->
                             Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) { pair.forEach { p -> Box(Modifier.weight(1f)) { PostRow(p) { openPost(p.id) } } }; if (pair.size == 1) Spacer(Modifier.weight(1f)) }
                         }
@@ -218,7 +224,7 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
                         sec.items.firstOrNull()?.let { first -> item(key = "s" + sec.slug + first.id) { PostCardMedium(first) { openPost(first.id) } } }
                         items(sec.items.drop(1).take(3), key = { "s" + sec.slug + it.id }) { p -> PostRow(p) { openPost(p.id) } }
                         val ads = config?.ads
-                        if (ads != null && si % 2 == 1) item(key = "ad$si") { if (si == 1) gr.aekhub.app.ads.FeedAd(ads) else BannerAd(ads, place = "home") }
+                        if (ads != null) item(key = "ad$si") { if (si % 2 == 0) gr.aekhub.app.ads.FeedAd(ads) else BannerAd(ads, place = "home") } // διαφήμιση μετά από κάθε ενότητα (εναλλάσσεται native / banner)
                     }
                     if (h.socials.isNotEmpty()) item(key = "soc") { Box(Modifier.padding(top = 16.dp)) { SocialSection(h.socials) } }
                 }
@@ -304,7 +310,7 @@ private fun NewsList(cat: String?, openPost: (Long) -> Unit, ads: AdsConfig?) {
                 PaddingValues(start = if (gr.aekhub.app.ui.win().wide) 24.dp else 16.dp, end = if (gr.aekhub.app.ui.win().wide) 24.dp else 16.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp), horizontalArrangement = Arrangement.spacedBy(24.dp),
             ) {
-                val every = ads?.everyN?.coerceAtLeast(4) ?: 0
+                val every = ads?.everyN?.coerceAtLeast(3) ?: 0
                 items.forEachIndexed { i, p ->
                     // Το πρώτο άρθρο κατηγορίας (μεγάλη κάρτα) πιάνει όλο το πλάτος
                     if (i == 0 && cat != null) item(key = p.id, span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) { PostCardMedium(p) { openPost(p.id) } }

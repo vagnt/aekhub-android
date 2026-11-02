@@ -35,15 +35,14 @@ import java.time.ZoneId
  *    στο Android 16 προωθείται σε Live Update (σκορ στη γραμμή κατάστασης)
  *  • γκολ της ΑΕΚ: δυνατή ειδοποίηση με τον ήχο του AEK Hub· όλα τα άλλα αθόρυβα
  *  • σήματα ομάδων αντί για emoji, κουμπιά (Δες το γκολ, Match Center, Σίγαση, Αποθήκευση)
- *  • «Χωρίς spoilers»: χωρίς σκορ στις ειδοποιήσεις
  */
 object Notifs {
     // Κανάλια (ο χρήστης τα ρυθμίζει και από τις ρυθμίσεις του Android)
     const val CH_LIVE = "live_match"
-    const val CH_GOAL = "aek_score" // νέο κανάλι στο 0.9.1: ο ήχος ενός καναλιού δεν αλλάζει μετά τη δημιουργία του
-    const val CH_MATCH = "matchday"
+    const val CH_GOAL = "aek_score2" // νέα κανάλια στο 0.14.0 (νέος ήχος): ο ήχος ενός καναλιού δεν αλλάζει μετά τη δημιουργία του
+    const val CH_MATCH = "matchday2"
     const val CH_QUIET = "match_quiet"
-    const val CH_NEWS = "news"
+    const val CH_NEWS = "news2"
 
     // Θέσεις μέσα σε κάθε αγώνα (ίδιο tag "m<id>": η νέα αντικαθιστά την παλιά του ίδιου είδους)
     private const val SLOT_LIVE = 1
@@ -62,22 +61,27 @@ object Notifs {
         if (Build.VERSION.SDK_INT < 26) return
         val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
         runCatching { nm.deleteNotificationChannel("matches") } // παλιό κανάλι (έως 0.8)
+        for (old in listOf("aek_score", "matchday", "news")) runCatching { nm.deleteNotificationChannel(old) } // παλιά κανάλια με τον παλιό ήχο (έως 0.13)
         runCatching { nm.deleteNotificationChannel("goal_aek") } // παλιός ήχος κόρνας (0.9.0)
         runCatching { nm.deleteNotificationChannel(CH_LIVE) } // η μόνιμη ειδοποίηση αγώνα καταργήθηκε (0.9.4) — φεύγει και όποια έχει μείνει
         nm.createNotificationChannel(NotificationChannel(CH_GOAL, "Σκορ της ΑΕΚ", NotificationManager.IMPORTANCE_HIGH).apply {
             description = "Γκολ, καλάθι ή σετ της ΑΕΚ, με τον ήχο του AEK Hub"
-            setSound(Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.aek_chime),
+            setSound(Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.aek_sound),
                 AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
             enableVibration(true); vibrationPattern = longArrayOf(0, 120, 80, 120)
         })
         nm.createNotificationChannel(NotificationChannel(CH_MATCH, "Ημέρα αγώνα", NotificationManager.IMPORTANCE_DEFAULT).apply {
-            description = "Υπενθύμιση, ενδεκάδα, σέντρα, τελικό"
+            description = "Υπενθύμιση, σέντρα, ημίχρονο, τελικό"
+            setSound(Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.aek_sound),
+                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
         })
         nm.createNotificationChannel(NotificationChannel(CH_QUIET, "Εξελίξεις αγώνα (αθόρυβα)", NotificationManager.IMPORTANCE_LOW).apply {
             description = "Γκολ αντιπάλου, ημίχρονο, κάρτες"
         })
         nm.createNotificationChannel(NotificationChannel(CH_NEWS, "Ειδήσεις", NotificationManager.IMPORTANCE_DEFAULT).apply {
             description = "Έκτακτα και σημαντικά άρθρα"
+            setSound(Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.aek_sound),
+                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
         })
     }
 
@@ -108,7 +112,7 @@ object Notifs {
             if (LocalTime.now(ZoneId.of("Europe/Athens")).hour in 1..7) return
         }
 
-        val sp = s.nSpoiler
+        val sp = false // «Χωρίς spoilers» καταργήθηκε (0.14.0): οι ειδοποιήσεις έχουν πάντα σκορ
         val ev = d["ev"] ?: ""
         val status = d["status"] ?: ""
         val liveNow = status !in setOf("", "upcoming", "finished", "postponed")
