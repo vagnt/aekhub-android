@@ -141,7 +141,18 @@ fun MatchScreen(id: Long, back: () -> Unit) {
     }
     // Το μήνυμα μόνο όταν ο αγώνας δεν έχει ΤΙΠΟΤΑ live (ούτε σκορ, ούτε γεγονότα, ούτε στατιστικά/συνθέσεις)
     val noCoverage = tabs.isEmpty() && !d.liveScore && !d.live
-    val tab = tabs.indexOf(tabName).takeIf { it >= 0 } ?: 0
+    // Οριζόντιο tablet: η «Πορεία» πάντα αριστερά και οι υπόλοιπες καρτέλες δεξιά, δίπλα-δίπλα
+    val split = gr.aekhub.app.ui.win() == gr.aekhub.app.ui.Win.Expanded && "Πορεία" in tabs && tabs.size > 1
+    val rTabs = if (split) tabs - "Πορεία" else tabs
+    val tab = rTabs.indexOf(tabName).takeIf { it >= 0 } ?: 0
+    @Composable fun TabBar() = Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(C.Panel).padding(4.dp)) {
+        rTabs.forEachIndexed { i, t ->
+            val on = i == tab
+            Box(Modifier.weight(1f).clip(RoundedCornerShape(9.dp)).background(if (on) C.Gold else Color.Transparent).clickable { tabName = t }.padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
+                Text(t, style = body(13, if (on) FontWeight.ExtraBold else FontWeight.Bold, if (on) C.Ink else C.Text2))
+            }
+        }
+    }
 
     popup?.let { h -> gr.aekhub.app.ui.components.VideoDialog(h.title, h.embed) { popup = null } }
     androidx.compose.material3.pulltorefresh.PullToRefreshBox(
@@ -173,17 +184,29 @@ fun MatchScreen(id: Long, back: () -> Unit) {
                 }
             }
         }
-        if (tabs.size > 1) item(key = "tabs") {
-            Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(C.Panel).padding(4.dp)) {
-                tabs.forEachIndexed { i, t ->
-                    val on = i == tab
-                    Box(Modifier.weight(1f).clip(RoundedCornerShape(9.dp)).background(if (on) C.Gold else Color.Transparent).clickable { tabName = t }.padding(vertical = 10.dp), contentAlignment = Alignment.Center) {
-                        Text(t, style = body(13, if (on) FontWeight.ExtraBold else FontWeight.Bold, if (on) C.Ink else C.Text2))
+        if (split) item(key = "split") {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    TimelineHeader(d)
+                    when {
+                        d.events.isEmpty() -> Text("Η πορεία θα εμφανιστεί μόλις γραφτούν τα πρώτα γεγονότα.", Modifier.padding(horizontal = 16.dp).fillMaxWidth().background(C.Panel).padding(16.dp),
+                            style = body(13, color = C.Muted), textAlign = TextAlign.Center)
+                        d.groups.isNotEmpty() -> d.groups.forEachIndexed { i, g -> PeriodGroup(g, d, i < d.groups.lastIndex) }
+                        else -> (if (d.status == "finished") d.events.reversed() else d.events).forEach { TimelineRow(it, d) }
+                    }
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    if (rTabs.size > 1) TabBar()
+                    when (rTabs.getOrNull(tab)) {
+                        "Στατιστικά" -> StatsView(d)
+                        "Συνθέσεις" -> LineupsView(d)
+                        "Παίκτες" -> ext?.let { x -> AnalysisView(d, x) }
                     }
                 }
             }
         }
-        when (tabs.getOrNull(tab)) {
+        if (!split && tabs.size > 1) item(key = "tabs") { TabBar() }
+        if (!split) when (tabs.getOrNull(tab)) {
             "Στατιστικά" -> item(key = "stats") { StatsView(d) }
             "Συνθέσεις" -> item(key = "lu") { LineupsView(d) }
             "Παίκτες" -> item(key = "ax") { ext?.let { x -> AnalysisView(d, x) } }
@@ -533,7 +556,9 @@ private fun LineupsView(d: MatchDetail) {
 private fun PitchView(d: MatchDetail, p: gr.aekhub.app.data.Pitch) {
     val homeBg = hex(d.homeColor, C.Text2); val homeFg = hex(d.homeNum, C.Ink)
     val awayBg = hex(d.awayColor, C.Gold); val awayFg = hex(d.awayNum, C.Ink)
-    BoxWithConstraints(Modifier.fillMaxWidth().aspectRatio(500f / 770f).clip(RoundedCornerShape(16.dp))) {
+    // Σε tablet το γήπεδο δεν μεγαλώνει πάνω από 520dp πλάτος (αλλιώς θα έπιανε όλη την οθόνη σε ύψος)
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+    BoxWithConstraints(Modifier.widthIn(max = 520.dp).fillMaxWidth().aspectRatio(500f / 770f).clip(RoundedCornerShape(16.dp))) {
         val w = maxWidth; val h = maxHeight
         androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(gr.aekhub.app.R.drawable.pitch_bg), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         // Γηπεδούχοι πάνω (καθρέφτης), φιλοξενούμενοι κάτω — όπως στο site
@@ -543,6 +568,7 @@ private fun PitchView(d: MatchDetail, p: gr.aekhub.app.data.Pitch) {
         p.away.forEach { pl -> Dot(pl, pl.x / 100f * w.value, h.value - (pl.y / 100f * (h.value / 2f) * 0.92f + h.value * 0.03f), awayBg, awayFg, best(pl)) }
         if (p.formationHome.isNotBlank()) Text(p.formationHome, Modifier.align(Alignment.TopEnd).padding(8.dp), style = body(11, FontWeight.ExtraBold, Color.White.copy(alpha = 0.85f)))
         if (p.formationAway.isNotBlank()) Text(p.formationAway, Modifier.align(Alignment.BottomEnd).padding(8.dp), style = body(11, FontWeight.ExtraBold, Color.White.copy(alpha = 0.85f)))
+    }
     }
 }
 

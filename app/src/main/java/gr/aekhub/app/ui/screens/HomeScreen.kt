@@ -17,8 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -127,10 +125,14 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
         }
         PullToRefreshBox(isRefreshing = refreshing, onRefresh = { scope.launch { refreshing = true; load(fresh = true); refreshing = false } }, modifier = Modifier.fillMaxSize()) {
             val h = home
+            // Tablet: πιο φαρδιά περιθώρια, κύριο θέμα δίπλα στα «Τελευταία νέα», ενότητες σε 2-3 στήλες
+            val w = gr.aekhub.app.ui.win()
+            val side = if (w.wide) 24.dp else 16.dp
+            val cols = when (w) { gr.aekhub.app.ui.Win.Expanded -> 3; gr.aekhub.app.ui.Win.Medium -> 2; else -> 1 }
             when {
                 h == null && error -> ErrorBox { key++ }
                 h == null -> Loading()
-                else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = side, end = side, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     h.breaking?.takeIf { it.text.isNotBlank() }?.let { b ->
                         item(key = "breaking") {
                             val uri = LocalUriHandler.current
@@ -166,11 +168,25 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
                             gr.aekhub.app.ads.PresentedBy("live", Modifier.padding(top = 8.dp))
                         }
                         lh != null && lh.type == "event" -> item(key = "lh") { LiveEventHero(lh.title, lh.image) { openEvent(lh.id) } }
-                        else -> h.featured?.let { f -> item(key = "feat") { FeaturedCard(f) { openPost(f.id) } } }
+                        lh == null && w == gr.aekhub.app.ui.Win.Expanded && h.featured != null && h.top.isNotEmpty() -> item(key = "feat") {
+                            val f = h.featured
+                            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                                Box(Modifier.weight(1.65f)) { FeaturedCard(f, 400.dp) { openPost(f.id) } }
+                                Column(Modifier.weight(1f)) {
+                                    GoldHeader("Τελευταία νέα", Modifier.padding(bottom = 4.dp), "Ροή ειδήσεων", openFeed)
+                                    h.top.take(4).forEach { p -> PostRow(p) { openPost(p.id) } }
+                                }
+                            }
+                        }
+                        else -> h.featured?.let { f -> item(key = "feat") { FeaturedCard(f, if (w.wide) 380.dp else 300.dp) { openPost(f.id) } } }
                     }
-                    if (h.top.isNotEmpty()) {
+                    val topBeside = w == gr.aekhub.app.ui.Win.Expanded && lh == null && h.featured != null
+                    if (h.top.isNotEmpty() && !topBeside) {
                         item(key = "toph") { GoldHeader("Τελευταία νέα", Modifier.padding(top = 8.dp), "Ροή ειδήσεων", openFeed) }
-                        items(h.top, key = { "t" + it.id }) { p -> PostRow(p) { openPost(p.id) } }
+                        if (cols == 1) items(h.top, key = { "t" + it.id }) { p -> PostRow(p) { openPost(p.id) } }
+                        else items(h.top.chunked(2), key = { "t" + it.first().id }) { pair ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) { pair.forEach { p -> Box(Modifier.weight(1f)) { PostRow(p) { openPost(p.id) } } }; if (pair.size == 1) Spacer(Modifier.weight(1f)) }
+                        }
                     }
                     // Ποδόσφαιρο: όσα πέφτουν μέσα στις μέρες της λίστας (τουλάχιστον το επόμενο), με σειρά ημερομηνίας
                     val lastDay = h.matches.maxOfOrNull { it.date } ?: ""
@@ -182,7 +198,22 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) { items(upcoming, key = { it.id }) { m -> MatchMini(m) { openMatch(m.id) } } }
                         }
                     }
-                    h.sections.forEachIndexed { si, sec ->
+                    if (cols > 1) h.sections.chunked(cols).forEachIndexed { ci, row ->
+                        item(key = "sr" + row.first().slug) {
+                            Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                                row.forEach { sec ->
+                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        GoldHeader(sec.name, Modifier, "Όλα") { openCat(sec.slug, sec.name) }
+                                        sec.items.firstOrNull()?.let { first -> PostCardMedium(first) { openPost(first.id) } }
+                                        sec.items.drop(1).take(3).forEach { p -> PostRow(p) { openPost(p.id) } }
+                                    }
+                                }
+                                repeat(cols - row.size) { Spacer(Modifier.weight(1f)) }
+                            }
+                        }
+                        val ads = config?.ads
+                        if (ads != null) item(key = "ad$ci") { if (ci == 0) gr.aekhub.app.ads.FeedAd(ads) else BannerAd(ads, place = "home") }
+                    } else h.sections.forEachIndexed { si, sec ->
                         item(key = "sh" + sec.slug) { GoldHeader(sec.name, Modifier.padding(top = 14.dp), "Όλα") { openCat(sec.slug, sec.name) } }
                         sec.items.firstOrNull()?.let { first -> item(key = "s" + sec.slug + first.id) { PostCardMedium(first) { openPost(first.id) } } }
                         items(sec.items.drop(1).take(3), key = { "s" + sec.slug + it.id }) { p -> PostRow(p) { openPost(p.id) } }
@@ -244,7 +275,7 @@ private fun NewsList(cat: String?, openPost: (Long) -> Unit, ads: AdsConfig?) {
     var error by remember(cat) { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
     var key by remember { mutableIntStateOf(0) }
-    val listState = rememberLazyListState()
+    val listState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
     val scope = rememberCoroutineScope()
 
     suspend fun load(reset: Boolean, fresh: Boolean = false) {
@@ -267,15 +298,21 @@ private fun NewsList(cat: String?, openPost: (Long) -> Unit, ads: AdsConfig?) {
         when {
             items.isEmpty() && error -> ErrorBox { key++ }
             items.isEmpty() -> Loading()
-            else -> LazyColumn(state = listState, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                itemsIndexed(items, key = { _, p -> p.id }) { i, p ->
-                    Column {
-                        if (i == 0 && cat != null) PostCardMedium(p) { openPost(p.id) } else PostRow(p) { openPost(p.id) }
-                        if (ads != null && (i + 1) % ads.everyN.coerceAtLeast(4) == 0) gr.aekhub.app.ads.FeedAd(ads)
-                    }
+            // Κινητό: μία στήλη. Tablet: 2-3 στήλες (όσες χωράνε), οι διαφημίσεις σε όλο το πλάτος.
+            else -> androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                androidx.compose.foundation.lazy.grid.GridCells.Adaptive(300.dp), Modifier.fillMaxSize(), listState,
+                PaddingValues(start = if (gr.aekhub.app.ui.win().wide) 24.dp else 16.dp, end = if (gr.aekhub.app.ui.win().wide) 24.dp else 16.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp), horizontalArrangement = Arrangement.spacedBy(24.dp),
+            ) {
+                val every = ads?.everyN?.coerceAtLeast(4) ?: 0
+                items.forEachIndexed { i, p ->
+                    // Το πρώτο άρθρο κατηγορίας (μεγάλη κάρτα) πιάνει όλο το πλάτος
+                    if (i == 0 && cat != null) item(key = p.id, span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) { PostCardMedium(p) { openPost(p.id) } }
+                    else item(key = p.id) { PostRow(p) { openPost(p.id) } }
+                    if (ads != null && (i + 1) % every == 0) item(key = "ad$i", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) { gr.aekhub.app.ads.FeedAd(ads) }
                 }
                 // Όχι ατελείωτο scroll: κουμπί για τα επόμενα
-                if (page < pages) item(key = "more") {
+                if (page < pages) item(key = "more", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
                     Box(Modifier.fillMaxWidth().padding(top = 8.dp), contentAlignment = Alignment.Center) {
                         if (loading) Box(Modifier.height(48.dp)) { Loading() }
                         else Box(Modifier.clip(RoundedCornerShape(12.dp)).background(C.Gold).clickable { scope.launch { load(false) } }.padding(horizontal = 22.dp, vertical = 12.dp)) {

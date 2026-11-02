@@ -189,12 +189,16 @@ fun MatchesScreen(openMatch: (Long) -> Unit) {
                             Text((if (target == next) "Επόμενος αγώνας: " else "Τελευταίος αγώνας: ") + dayShort(t) + " " + t.dayOfMonth + " " + monthShort(t) + if (target == next) " ›" else "", style = body(14, FontWeight.ExtraBold, C.Gold))
                         }
                     }
-                } else LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(ms, key = { it.id }) { m ->
+                } else androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                    // Tablet: οι αγώνες της ημέρας σε 2-3 στήλες
+                    androidx.compose.foundation.lazy.grid.GridCells.Adaptive(300.dp), Modifier.fillMaxSize(), contentPadding = PaddingValues(if (gr.aekhub.app.ui.win().wide) 24.dp else 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp), horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    items(ms.size, key = { ms[it].id }) { i -> val m = ms[i]
                         MatchCardView(m, settings.alertOn(m.id, m.sport, m.aek.isNotEmpty()).also { }, { if (!settings.nAll) android.widget.Toast.makeText(ctxM, "Οι ειδοποιήσεις είναι κλειστές. Άνοιξέ τες από το «Εγώ».", android.widget.Toast.LENGTH_LONG).show() else { val on = settings.alertOn(m.id, m.sport, m.aek.isNotEmpty()); scope.launch { prefs.toggleMatchAlert(m.id, on) } } }) { openMatch(m.id) }
                     }
                     val ads = config?.ads
-                    if (ads != null && ads.matches) item(key = "ad") { BannerAd(ads, place = "matches") }
+                    if (ads != null && ads.matches) item(key = "ad", span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) { BannerAd(ads, place = "matches") }
                 }
             } }
         }

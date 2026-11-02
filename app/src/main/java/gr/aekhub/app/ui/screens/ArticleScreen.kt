@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -118,7 +120,10 @@ fun ArticleScreen(id: Long, back: () -> Unit, openPost: (Long) -> Unit = {}) {
     var showComments by androidx.compose.runtime.remember(p.id) { androidx.compose.runtime.mutableStateOf(false) }
     if (showComments) gr.aekhub.app.ui.components.CommentsSheet(p.id, p.title) { showComments = false } // 💬 σχόλια σε pop up, στυλ chat
 
-    Box(Modifier.fillMaxSize()) {
+    // Tablet: το άρθρο σε στήλη για άνετο διάβασμα· σε οριζόντιο tablet το «Διάβασε επίσης» στο πλάι
+    val aside = gr.aekhub.app.ui.win() == gr.aekhub.app.ui.Win.Expanded && more.isNotEmpty()
+    Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.Center) {
+    Box(Modifier.weight(1f, fill = false).widthIn(max = 760.dp).fillMaxSize()) {
         androidx.compose.material3.pulltorefresh.PullToRefreshBox(isRefreshing = refreshing, onRefresh = { refreshing = true; fresh = true; key++ }, modifier = Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(bottom = 110.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item(key = "hero") {
@@ -171,7 +176,7 @@ fun ArticleScreen(id: Long, back: () -> Unit, openPost: (Long) -> Unit = {}) {
             if (socials.isNotEmpty()) item(key = "socials") {
                 Box(Modifier.padding(horizontal = 16.dp)) { SocialRow(socials, "Συζήτησέ το μαζί μας") }
             }
-            if (more.isNotEmpty()) {
+            if (more.isNotEmpty() && !aside) {
                 item(key = "moreh") {
                     Row(Modifier.padding(horizontal = 16.dp).padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Box(Modifier.width(4.dp).height(22.dp).background(C.Gold))
@@ -221,6 +226,17 @@ fun ArticleScreen(id: Long, back: () -> Unit, openPost: (Long) -> Unit = {}) {
                 Text("Κοινοποίηση", style = body(15, FontWeight.ExtraBold, C.Ink))
             }
         }
+    }
+    if (aside) Column(
+        Modifier.width(340.dp).fillMaxHeight().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(start = 8.dp, end = 24.dp, top = 72.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.width(4.dp).height(22.dp).background(C.Gold))
+            Text("ΔΙΑΒΑΣΕ ΕΠΙΣΗΣ", style = disp(22), color = C.Text)
+        }
+        more.forEach { c -> gr.aekhub.app.ui.components.PostRow(c) { openPost(c.id) } }
+    }
     }
 }
 

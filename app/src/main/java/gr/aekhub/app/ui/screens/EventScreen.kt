@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -81,7 +83,8 @@ fun EventScreen(id: Long, back: () -> Unit) {
 
     androidx.compose.material3.pulltorefresh.PullToRefreshBox(isRefreshing = refreshing, modifier = Modifier.fillMaxSize(),
         onRefresh = { scope.launch { refreshing = true; runCatching { ev = Api.event(id, fresh = true) }; refreshing = false } }) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    // Tablet: στη μέση, με λογικό πλάτος
+    LazyColumn(Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 760.dp), contentPadding = PaddingValues(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Box(Modifier.fillMaxWidth().height(230.dp)) {
                 if (e.image.isNotBlank()) AsyncImage(e.image, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
