@@ -157,6 +157,10 @@ object Notifs {
         return bmp
     }
 
+    /** Το λογότυπο «hub» (έγχρωμο, κίτρινο με μαύρα γράμματα) για ειδοποιήσεις χωρίς σήμα ομάδας ή φωτογραφία. */
+    private var hub: Bitmap? = null
+    private fun hubLogo(ctx: Context): Bitmap? = hub ?: runCatching { android.graphics.BitmapFactory.decodeResource(ctx.resources, R.drawable.hub_logo) }.getOrNull().also { hub = it }
+
     /** Το σήμα ολόκληρο, με τις αναλογίες του, στο κέντρο ενός τετραγώνου με διάφανο περιθώριο (για να μην κόβεται στο στρογγύλεμα). */
     private fun fitCrest(dr: android.graphics.drawable.Drawable, size: Int, fill: Float): Bitmap {
         val w = dr.intrinsicWidth.takeIf { it > 0 } ?: size; val h = dr.intrinsicHeight.takeIf { it > 0 } ?: size
@@ -255,7 +259,7 @@ object Notifs {
             .setContentIntent(openMatch(ctx, id, 1))
             .addAction(0, "Match Center", openMatch(ctx, id, 2))
         if (!done) b.addAction(muteAction(ctx, id))
-        crest(ctx, aekLogo(d))?.let { b.setLargeIcon(it) }
+        b.setLargeIcon(crest(ctx, aekLogo(d)) ?: hubLogo(ctx))
         // Μπάρα αγώνα: ποδόσφαιρο/futsal/πόλο με το λεπτό, μπάσκετ με το δεκάλεπτο
         var rich: Any? = null
         if (!done) {
@@ -329,7 +333,7 @@ object Notifs {
             .setCategory(NotificationCompat.CATEGORY_EVENT)
             .setPriority(if (loud) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
             .setTimeoutAfter(20 * 60_000L)
-        if (!spoiler) crest(ctx, logo)?.let { b.setLargeIcon(it) }
+        if (!spoiler) b.setLargeIcon(crest(ctx, logo) ?: hubLogo(ctx))
         if (d["hl"] == "1" && d["ev"] == "goal") b.addAction(0, "Δες το γκολ", openMatch(ctx, id, 4))
         b.addAction(0, "Match Center", openMatch(ctx, id, 2))
         post(ctx, tag(id), SLOT_GOAL, b)
@@ -345,7 +349,7 @@ object Notifs {
             .setSubText(d["comp"])
             .setContentIntent(openMatch(ctx, id, 5))
             .setTimeoutAfter(12 * 3_600_000L)
-        if (!spoiler) crest(ctx, aekLogo(d))?.let { b.setLargeIcon(it) }
+        if (!spoiler) b.setLargeIcon(crest(ctx, aekLogo(d)) ?: hubLogo(ctx))
         if (d["hl"] == "1") b.addAction(0, "Στιγμιότυπα", openMatch(ctx, id, 6))
         b.addAction(0, "Βαθμολογία", openTab(ctx, "standings", 9001))
         NotificationManagerCompat.from(ctx).cancel(tag(id), SLOT_GOAL)
@@ -359,7 +363,7 @@ object Notifs {
         val text = if (spoiler && !reveal) "Νέα εξέλιξη στον αγώνα. Πάτα για να τη δεις." else d["body"].orEmpty()
         val b = base(ctx, ch, title, text).setSubText(d["comp"]).setContentIntent(openMatch(ctx, id, 3))
             .addAction(0, "Match Center", openMatch(ctx, id, 2))
-        if (!spoiler) crest(ctx, if (d["side"] == "away") d["alogo"] else if (d["side"] == "home") d["hlogo"] else aekLogo(d))?.let { b.setLargeIcon(it) }
+        if (!spoiler) b.setLargeIcon(crest(ctx, if (d["side"] == "away") d["alogo"] else if (d["side"] == "home") d["hlogo"] else aekLogo(d)) ?: hubLogo(ctx))
         if (slot == SLOT_LIVE) b.addAction(muteAction(ctx, id))
         post(ctx, tag(id), slot, b)
     }
@@ -370,7 +374,7 @@ object Notifs {
             .setSubText(d["comp"]).setContentIntent(openMatch(ctx, id, 3))
             .addAction(0, "Συνθέσεις", openMatch(ctx, id, 8))
             .addAction(0, "Match Center", openMatch(ctx, id, 2))
-        crest(ctx, aekLogo(d))?.let { b.setLargeIcon(it) }
+        b.setLargeIcon(crest(ctx, aekLogo(d)) ?: hubLogo(ctx))
         post(ctx, tag(id), SLOT_LINEUP, b)
     }
 
@@ -381,7 +385,7 @@ object Notifs {
             .addAction(0, "Match Center", openMatch(ctx, id, 2))
             .addAction(muteAction(ctx, id))
             .setTimeoutAfter(60 * 60_000L)
-        crest(ctx, aekLogo(d))?.let { b.setLargeIcon(it) }
+        b.setLargeIcon(crest(ctx, aekLogo(d)) ?: hubLogo(ctx))
         post(ctx, tag(id), SLOT_REMIND, b)
     }
 
@@ -400,6 +404,7 @@ object Notifs {
         val b = base(ctx, CH_NEWS, title, body).setSubText(label ?: mainCat(d["cat"]))
         val open = if (post > 0) openPost(ctx, post) else PendingIntent.getActivity(ctx, 0, Intent(ctx, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         b.setContentIntent(open)
+        b.setLargeIcon(hubLogo(ctx)) // χωρίς φωτογραφία: το λογότυπο hub
         crest(ctx, d["image"], 720)?.let { img ->
             b.setLargeIcon(img).setStyle(NotificationCompat.BigPictureStyle().bigPicture(img).bigLargeIcon(null as Bitmap?).setSummaryText(body))
         }
