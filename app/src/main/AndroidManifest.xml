@@ -41,19 +41,19 @@
         </receiver>
         <receiver android:name=".widget.MatchesFootballReceiver" android:exported="true" android:label="@string/w_football">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/aek_list_widget" />
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/aek_list_football" />
         </receiver>
         <receiver android:name=".widget.MatchesBasketballReceiver" android:exported="true" android:label="@string/w_basket">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/aek_list_widget" />
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/aek_list_basket" />
         </receiver>
         <receiver android:name=".widget.MatchesVolleyballReceiver" android:exported="true" android:label="@string/w_volley">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/aek_list_widget" />
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/aek_list_volley" />
         </receiver>
         <receiver android:name=".widget.MatchesHandballReceiver" android:exported="true" android:label="@string/w_handball">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/aek_list_widget" />
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/aek_list_hand" />
         </receiver>
         <receiver android:name=".widget.StandingsFootballReceiver" android:exported="true" android:label="@string/w_stand_f">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
@@ -61,7 +61,7 @@
         </receiver>
         <receiver android:name=".widget.StandingsBasketballReceiver" android:exported="true" android:label="@string/w_stand_b">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
-            <meta-data android:name="android.appwidget.provider" android:resource="@xml/aek_standings_widget" />
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/aek_standings_basket" />
         </receiver>
         <receiver android:name=".widget.NewsWidgetReceiver" android:exported="true" android:label="@string/w_news">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
