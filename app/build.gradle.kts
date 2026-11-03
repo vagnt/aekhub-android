@@ -15,8 +15,8 @@ android {
         applicationId = "gr.aekhub.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 46
-        versionName = "0.16.2"
+        versionCode = 47
+        versionName = "0.16.3"
         buildConfigField("String", "SITE", "\"https://aekhub.gr\"")
         // true μόνο στο APK του dev (build type «devtools»): εργαλεία προσομοίωσης αγώνα
         buildConfigField("boolean", "DEV", "false")

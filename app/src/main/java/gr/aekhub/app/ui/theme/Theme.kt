@@ -4,6 +4,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -50,8 +55,33 @@ fun disp(size: Int, weight: FontWeight = FontWeight.ExtraBold) =
 fun body(size: Int, weight: FontWeight = FontWeight.Medium, color: Color = C.Text) =
     TextStyle(fontFamily = Body, fontWeight = weight, fontSize = size.sp, lineHeight = (size * 1.35).sp, color = color)
 
+/** Το μέγεθος γραμματοσειράς του συστήματος (πριν το «κόψουμε») — το χρησιμοποιεί μόνο το κείμενο των άρθρων. */
+val LocalSysFont = staticCompositionLocalOf { 1f }
+
+/**
+ * Ίδια εμφάνιση σε κάθε κινητό, όποιο μέγεθος γραμματοσειράς/οθόνης κι αν έχει ο χρήστης:
+ * - Γραμματοσειρά συστήματος: έως 100% στο UI (με «Μεγάλα γράμματα» έσπαγαν τίτλοι, ονόματα ομάδων, πλακίδια).
+ *   Το κείμενο των άρθρων μεγαλώνει κανονικά (LocalSysFont, ως 130%) + η δική μας ρύθμιση μεγέθους.
+ * - «Μεγέθυνση οθόνης» (Samsung/Xiaomi): αν το πλάτος πέσει κάτω από 360dp, μικραίνουμε αναλογικά ώστε να χωράνε όλα.
+ */
 @Composable
 fun AekTheme(content: @Composable () -> Unit) {
+    val d = LocalDensity.current
+    val conf = LocalConfiguration.current
+    val w = conf.screenWidthDp
+    val k = if (w in 1 until MIN_W) w / MIN_W.toFloat() else 1f
+    val c2 = if (k < 1f) android.content.res.Configuration(conf).apply { screenWidthDp = MIN_W; screenHeightDp = (conf.screenHeightDp / k).toInt() } else conf
+    CompositionLocalProvider(
+        LocalDensity provides Density(d.density * k, d.fontScale.coerceIn(0.85f, 1f)),
+        LocalConfiguration provides c2,
+        LocalSysFont provides d.fontScale,
+    ) { Themed(content) }
+}
+
+private const val MIN_W = 360
+
+@Composable
+private fun Themed(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = darkColorScheme(
             primary = C.Gold, onPrimary = C.Ink,

@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -148,3 +149,35 @@ fun ScreenTitle(text: String, modifier: Modifier = Modifier) =
     Text(text.upperGr(), modifier = modifier, style = disp(32), color = C.Text)
 
 val ListPad = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp)
+
+/**
+ * Κείμενο που μικραίνει μόνο του ώσπου να χωρέσει (αντί για «Ποδόσφαι…» ή λέξη κομμένη στη μέση).
+ * maxLines = 1 → μία γραμμή· maxLines = 2 → σπάει μόνο σε κενό, ποτέ μέσα σε λέξη (π.χ. «ΠΑΝΑΘΗΝΑΪΚΟΣ»).
+ * Αν ούτε στο minSize χωράει, τότε «…».
+ */
+@Composable
+fun FitText(
+    text: String, modifier: Modifier = Modifier, style: androidx.compose.ui.text.TextStyle,
+    color: Color = Color.Unspecified, textAlign: TextAlign? = null, maxLines: Int = 1, minSize: Float = 10f,
+) {
+    val al = when (textAlign) { TextAlign.Center -> Alignment.Center; TextAlign.End, TextAlign.Right -> Alignment.CenterEnd; else -> Alignment.CenterStart }
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier, contentAlignment = al) {
+        val base = style.fontSize.value
+        var size by remember(text, base, maxWidth) { androidx.compose.runtime.mutableFloatStateOf(base) }
+        var ready by remember(text, base, maxWidth) { androidx.compose.runtime.mutableStateOf(false) }
+        val k = size / base
+        Text(
+            text, Modifier.drawWithContent { if (ready) drawContent() },
+            style = style.copy(fontSize = size.sp, lineHeight = if (style.lineHeight.isSp) (style.lineHeight.value * k).sp else style.lineHeight, letterSpacing = if (style.letterSpacing.isSp) (style.letterSpacing.value * k).sp else style.letterSpacing),
+            color = color, textAlign = textAlign, maxLines = maxLines, softWrap = maxLines > 1,
+            overflow = if (size <= minSize) androidx.compose.ui.text.style.TextOverflow.Ellipsis else androidx.compose.ui.text.style.TextOverflow.Clip,
+            onTextLayout = { r ->
+                val broken = (0 until r.lineCount - 1).any { i ->
+                    val e = r.getLineEnd(i)
+                    e in 1 until text.length && !text[e - 1].isWhitespace() && !text[e].isWhitespace() && text[e - 1] != '-'
+                }
+                if ((r.hasVisualOverflow || broken) && size > minSize) size = maxOf(minSize, size * 0.92f) else ready = true
+            },
+        )
+    }
+}

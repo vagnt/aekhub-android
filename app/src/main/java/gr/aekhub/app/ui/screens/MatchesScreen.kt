@@ -113,7 +113,12 @@ fun MatchesScreen(openMatch: (Long) -> Unit) {
     fun go(i: Int) = scope.launch { pager.animateScrollToPage(i.coerceIn(0, days.lastIndex)) }
 
     Column(Modifier.fillMaxSize()) {
-        ScreenTitle("Αγώνες", Modifier.padding(start = 16.dp, top = 14.dp, bottom = 8.dp))
+        var cal by remember { mutableStateOf(false) }
+        if (cal) gr.aekhub.app.ui.components.CalendarSheet(config?.calendar, config?.sports ?: emptyList(), config?.site.orEmpty()) { cal = false }
+        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            ScreenTitle("Αγώνες", Modifier.weight(1f))
+            gr.aekhub.app.ui.components.CalendarButton({ cal = true })
+        }
         val opts = listOf("" to "Όλα τα αθλήματα") + (config?.sports?.map { it.key to it.name } ?: emptyList())
         AekDropdown("ΑΘΛΗΜΑ", opts.firstOrNull { it.first == sport }?.second ?: "Όλα τα αθλήματα", opts, Modifier.padding(start = 16.dp, end = 16.dp, bottom = 10.dp).fillMaxWidth()) { sport = it }
 
@@ -150,7 +155,7 @@ fun MatchesScreen(openMatch: (Long) -> Unit) {
                 val rel = ChronoUnit.DAYS.between(today, cur)
                 Text(when (rel) { 0L -> "ΣΗΜΕΡΑ"; 1L -> "ΑΥΡΙΟ"; -1L -> "ΧΘΕΣ"; else -> if (rel > 0) "ΣΕ $rel ΜΕΡΕΣ" else "ΠΡΙΝ ${-rel} ΜΕΡΕΣ" },
                     style = body(10, FontWeight.ExtraBold, if (rel == 0L) C.Gold else C.Muted))
-                Text(dayHeader(cur), style = disp(20), color = C.Text, textAlign = TextAlign.Center)
+                gr.aekhub.app.ui.components.FitText(dayHeader(cur), style = disp(20), color = C.Text, textAlign = TextAlign.Center, minSize = 13f)
             }
             IconButton(onClick = { go(pager.currentPage + 1) }) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Επόμενη μέρα", tint = C.Text) }
         }

@@ -1,5 +1,6 @@
 package gr.aekhub.app.push
 
+import gr.aekhub.app.ui.components.upperGr
 import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -322,7 +323,7 @@ object Notifs {
         val sub = when { done -> "Τελικό"; min.isNotBlank() -> min; else -> phase }
         for (v in listOf(small, big)) {
             hl?.let { v.setImageViewBitmap(R.id.nb_hlogo, it) }; al?.let { v.setImageViewBitmap(R.id.nb_alogo, it) }
-            v.setTextViewText(R.id.nb_home, d["home"].orEmpty()); v.setTextViewText(R.id.nb_away, d["away"].orEmpty())
+            v.setTextViewText(R.id.nb_home, d["home"].orEmpty().upperGr()); v.setTextViewText(R.id.nb_away, d["away"].orEmpty().upperGr())
             v.setTextViewText(R.id.nb_score, score); v.setTextViewText(R.id.nb_min, sub)
         }
         big.setTextViewText(R.id.nb_comp, d["comp"].orEmpty())

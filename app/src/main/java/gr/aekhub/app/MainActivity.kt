@@ -237,9 +237,7 @@ private fun AppRoot(deep: MutableStateFlow<Deep?>) {
                             icon = { Icon(t.icon, null, Modifier.size(24.dp)) },
                             // Μία γραμμή πάντα: με μεγάλη γραμματοσειρά συστήματος το «Βαθμολογίες» έσπαγε σε δύο και ανέβαζε τα εικονίδια
                             label = {
-                                val fs = androidx.compose.ui.platform.LocalDensity.current.fontScale.coerceAtLeast(1f)
-                                Text(t.label, style = body(11, if (on) FontWeight.ExtraBold else FontWeight.Bold).copy(fontSize = (11f / fs).coerceAtLeast(9f).sp),
-                                    maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                                gr.aekhub.app.ui.components.FitText(t.label, style = body(11, if (on) FontWeight.ExtraBold else FontWeight.Bold), minSize = 9f)
                             },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = C.Gold, selectedTextColor = C.Gold, indicatorColor = Color.Transparent,

@@ -132,7 +132,7 @@ fun StandingTable(s: Standing) {
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                     Crest(r.logo, r.name, 24.dp)
                     Box(Modifier.width(8.dp))
-                    Text(r.name.upperGr(), style = disp(16), color = if (r.aek) C.Gold else C.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    gr.aekhub.app.ui.components.FitText(r.name.upperGr(), Modifier.weight(1f, fill = false), style = disp(16), color = if (r.aek) C.Gold else C.Text, minSize = 11f)
                 }
                 Num(r.played)
                 Num(r.won); if (wdl) Num(r.drawn); Num(r.lost)

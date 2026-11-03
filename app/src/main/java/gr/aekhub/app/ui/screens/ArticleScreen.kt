@@ -112,7 +112,7 @@ fun ArticleScreen(id: Long, back: () -> Unit, openPost: (Long) -> Unit = {}) {
     val p = post
     if (p == null) { if (error) ErrorBox { key++ } else Loading(); return }
     val saved = settings.saved.any { it.id == p.id }
-    val scale = settings.textScale
+    val scale = settings.textScale * gr.aekhub.app.ui.theme.LocalSysFont.current.coerceIn(1f, 1.3f) // μεγάλα γράμματα συστήματος → και το άρθρο
     fun share() = gr.aekhub.app.data.Analytics.event(ctx, "share", "content_type" to "article", "item_id" to p.id).also { ctx.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"; putExtra(Intent.EXTRA_SUBJECT, p.title); putExtra(Intent.EXTRA_TEXT, p.title + "\n" + p.link)
     }, "Κοινοποίηση")) }
