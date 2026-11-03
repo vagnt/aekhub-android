@@ -25,6 +25,8 @@ data class Settings(
     /** Έκτακτα μόνο από αυτές τις κατηγορίες (ονόματα)· άδειο = όλες. */
     val newsCats: Set<String> = emptySet(),
     val nQuiet: Boolean = false,
+    /** Ζωντανός αγώνας στην οθόνη κλειδώματος (Live Update). Προεπιλογή: ανοιχτό από Android 16, κλειστό πριν. */
+    val nLive: Boolean = android.os.Build.VERSION.SDK_INT >= 36,
     /** Γενικός διακόπτης: κλειστός = καμία ειδοποίηση από το AEK Hub. */
     val nAll: Boolean = true,
     /** «Χωρίς spoilers»: ειδοποιήσεις αγώνων χωρίς σκορ. */
@@ -83,6 +85,7 @@ class Prefs(private val ctx: Context) {
         val breaking = booleanPreferencesKey("n_breaking")
         val newsCats = stringSetPreferencesKey("news_cats")
         val quiet = booleanPreferencesKey("n_quiet")
+        val live = booleanPreferencesKey("n_live")
         val all = booleanPreferencesKey("n_all")
         val spoiler = booleanPreferencesKey("n_spoiler")
         val stats = booleanPreferencesKey("n_stats")
@@ -106,6 +109,7 @@ class Prefs(private val ctx: Context) {
             nBreaking = p[K.breaking] ?: d.nBreaking,
             newsCats = p[K.newsCats] ?: d.newsCats,
             nQuiet = p[K.quiet] ?: d.nQuiet,
+            nLive = p[K.live] ?: d.nLive,
             nAll = p[K.all] ?: d.nAll,
             nSpoiler = p[K.spoiler] ?: d.nSpoiler,
             nStats = p[K.stats] ?: d.nStats,
@@ -152,7 +156,7 @@ class Prefs(private val ctx: Context) {
         val key: Preferences.Key<Boolean> = when (name) {
             "goals" -> K.goals; "startEnd" -> K.startEnd; "lineup" -> K.lineup
             "cards" -> K.cards; "breaking" -> K.breaking
-            "all" -> K.all; "spoiler" -> K.spoiler; "stats" -> K.stats; else -> K.quiet
+            "all" -> K.all; "spoiler" -> K.spoiler; "stats" -> K.stats; "live" -> K.live; else -> K.quiet
         }
         p[key] = v
     }

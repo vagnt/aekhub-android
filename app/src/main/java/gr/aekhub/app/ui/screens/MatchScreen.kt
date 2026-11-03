@@ -167,6 +167,20 @@ fun MatchScreen(id: Long, back: () -> Unit) {
             val sp = d.sponsor
             if (sp != null) SponsorBlock(d.id, sp, ::open) else gr.aekhub.app.ads.PresentedBy("match", Modifier.padding(horizontal = 16.dp))
         }
+        item(key = "actions") {
+            Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (d.status == "upcoming") ActionPill("Στο ημερολόγιο", Modifier.weight(1f)) {
+                    if (!gr.aekhub.app.share.ShareCard.addToCalendar(ctx, d)) android.widget.Toast.makeText(ctx, "Δεν βρέθηκε εφαρμογή ημερολογίου.", android.widget.Toast.LENGTH_SHORT).show()
+                }
+                ActionPill("Κοινοποίηση κάρτας", Modifier.weight(1f)) {
+                    scope.launch {
+                        val uri = gr.aekhub.app.share.ShareCard.build(ctx, d)
+                        if (uri != null) gr.aekhub.app.share.ShareCard.share(ctx, uri, (if (d.link.isNotBlank()) d.link else "https://aekhub.gr"))
+                        else android.widget.Toast.makeText(ctx, "Δεν έγινε η κάρτα. Δοκίμασε ξανά.", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
         d.stream?.let { s -> item(key = "stream") { StreamCard(s.thumb, s.label, s.kicker, s.state, if (playStream && s.embed.isNotBlank()) s.embed else null) { if (s.embed.isNotBlank()) playStream = true else open(s.url) } } }
         if (d.highlights.isNotEmpty()) item(key = "hl") {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -638,5 +652,12 @@ private fun SponsorBlock(matchId: Long, s: gr.aekhub.app.data.Sponsor, open: (St
             Text(s.name, style = body(22, FontWeight.ExtraBold, C.Text))
         }
         if (s.note.isNotBlank()) Text(s.note, style = body(11, FontWeight.Normal, C.Muted))
+    }
+}
+
+@Composable
+private fun ActionPill(text: String, modifier: Modifier, onClick: () -> Unit) {
+    Box(modifier.clip(RoundedCornerShape(14.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(14.dp)).clickable(onClick = onClick).padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+        Text(text, style = body(13, FontWeight.ExtraBold, C.Gold))
     }
 }

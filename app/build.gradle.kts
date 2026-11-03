@@ -15,9 +15,12 @@ android {
         applicationId = "gr.aekhub.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 39
-        versionName = "0.14.1"
+        versionCode = 40
+        versionName = "0.15.0"
         buildConfigField("String", "SITE", "\"https://aekhub.gr\"")
+        // true μόνο στο APK του dev (build type «devtools»): εργαλεία προσομοίωσης αγώνα
+        buildConfigField("boolean", "DEV", "false")
+        manifestPlaceholders["appLabel"] = "@string/app_name"
         // AdMob App ID (δημόσιο αναγνωριστικό). Μέχρι να μπει το δικό μας, το δοκιμαστικό της Google.
         manifestPlaceholders["admobAppId"] = (project.findProperty("admobAppId") as String?) ?: "ca-app-pub-3940256099942544~3347511713"
     }
@@ -52,6 +55,19 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+        }
+        // APK για τον dev: εγκαθίσταται ΔΙΠΛΑ στο κανονικό app (άλλο όνομα πακέτου), με εργαλεία προσομοίωσης αγώνα.
+        // Χωρίς Firebase (δεν έχει δικό του client), χωρίς minify, υπογεγραμμένο με το κλειδί δοκιμών.
+        create("devtools") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            isMinifyEnabled = false
+            isShrinkResources = false
+            signingConfig = signingConfigs.getByName("dev")
+            matchingFallbacks += listOf("release")
+            buildConfigField("boolean", "DEV", "true")
+            manifestPlaceholders["appLabel"] = "AEK Hub DEV"
         }
     }
     compileOptions {
@@ -88,8 +104,15 @@ dependencies {
     implementation("org.jsoup:jsoup:1.18.1")
     implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
     implementation("com.google.firebase:firebase-messaging")
+    // Widget αρχικής οθόνης
+    implementation("androidx.glance:glance-appwidget:1.1.1")
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.android.gms:play-services-ads:23.5.0")
     implementation("com.google.android.ump:user-messaging-platform:3.1.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
+}
+
+// Το dev APK έχει άλλο όνομα πακέτου που δεν υπάρχει στο google-services.json: δεν επεξεργάζεται το Firebase (το app δουλεύει χωρίς push)
+tasks.configureEach {
+    if (name.contains("Devtools", ignoreCase = true) && name.contains("GoogleServices", ignoreCase = true)) enabled = false
 }

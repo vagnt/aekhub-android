@@ -14,7 +14,7 @@ class AekMessagingService : FirebaseMessagingService() {
         val d = msg.data
         // Κάθε μήνυμα (και το αθόρυβο «sync») ξυπνάει τις ανοιχτές οθόνες να ανανεωθούν τώρα
         gr.aekhub.app.live.Live.ping()
-        if (d["kind"] == "sync") return
+        if (d["kind"] == "sync") { gr.aekhub.app.widget.WidgetData.refreshAsync(applicationContext); return } // το widget ανανεώνεται μαζί με τις οθόνες
         val data = HashMap(d)
         if (data["title"] == null) msg.notification?.title?.let { data["title"] = it }
         if (data["body"] == null) msg.notification?.body?.let { data["body"] = it }
