@@ -65,6 +65,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -234,7 +235,12 @@ private fun AppRoot(deep: MutableStateFlow<Deep?>) {
                         NavigationBarItem(
                             selected = on, onClick = { goTab(t.route) },
                             icon = { Icon(t.icon, null, Modifier.size(24.dp)) },
-                            label = { Text(t.label, style = body(11, if (on) FontWeight.ExtraBold else FontWeight.Bold)) },
+                            // Μία γραμμή πάντα: με μεγάλη γραμματοσειρά συστήματος το «Βαθμολογίες» έσπαγε σε δύο και ανέβαζε τα εικονίδια
+                            label = {
+                                val fs = androidx.compose.ui.platform.LocalDensity.current.fontScale.coerceAtLeast(1f)
+                                Text(t.label, style = body(11, if (on) FontWeight.ExtraBold else FontWeight.Bold).copy(fontSize = (11f / fs).coerceAtLeast(9f).sp),
+                                    maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = C.Gold, selectedTextColor = C.Gold, indicatorColor = Color.Transparent,
                                 unselectedIconColor = C.Muted, unselectedTextColor = C.Muted,
