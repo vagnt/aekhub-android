@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">AEK Hub</string>
+    <string name="widget_name">ΑΕΚ — αγώνας</string>
+    <string name="widget_desc">Ζωντανό σκορ ή ο επόμενος αγώνας της ΑΕΚ</string>
+    <string name="tile_label">ΑΕΚ</string>
 </resources>

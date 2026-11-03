@@ -63,7 +63,11 @@ object Notifs {
         runCatching { nm.deleteNotificationChannel("matches") } // παλιό κανάλι (έως 0.8)
         for (old in listOf("aek_score", "matchday", "news")) runCatching { nm.deleteNotificationChannel(old) } // παλιά κανάλια με τον παλιό ήχο (έως 0.13)
         runCatching { nm.deleteNotificationChannel("goal_aek") } // παλιός ήχος κόρνας (0.9.0)
-        runCatching { nm.deleteNotificationChannel(CH_LIVE) } // η μόνιμη ειδοποίηση αγώνα καταργήθηκε (0.9.4) — φεύγει και όποια έχει μείνει
+        // Ζωντανός αγώνας (Live Update, 0.15.0): αθόρυβο κανάλι· ο χρήστης το ανοίγει/κλείνει από το «Εγώ» ή από τις ρυθμίσεις του Android
+        nm.createNotificationChannel(NotificationChannel(CH_LIVE, "Ζωντανός αγώνας", NotificationManager.IMPORTANCE_DEFAULT).apply {
+            description = "Σκορ και λεπτό που ενημερώνονται ζωντανά στην οθόνη κλειδώματος (Android 16: και στη γραμμή κατάστασης)"
+            setSound(null, null); enableVibration(false); setShowBadge(false)
+        })
         nm.createNotificationChannel(NotificationChannel(CH_GOAL, "Σκορ της ΑΕΚ", NotificationManager.IMPORTANCE_HIGH).apply {
             description = "Γκολ, καλάθι ή σετ της ΑΕΚ, με τον ήχο του AEK Hub"
             setSound(Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.aek_sound),
@@ -93,6 +97,8 @@ object Notifs {
         if (!s.nAll) return // γενικός διακόπτης
         val id = d["match"]?.toLongOrNull() ?: 0L
 
+        // Widget και πλακίδιο: σκορ/λεπτό από την ίδια την ειδοποίηση, χωρίς δίκτυο
+        if (id > 0 && kind in setOf("goals", "startend", "live", "cards", "reminder")) runCatching { gr.aekhub.app.widget.WidgetData.fromPush(ctx, d) }
         if (kind == "lineup") return // ενδεκάδες/πεντάδες: καμία ειδοποίηση (και αν έρθει από παλιότερο server)
         if (kind == "breaking") {
             val cat = d["cat"].orEmpty()
@@ -104,7 +110,7 @@ object Notifs {
         val sport = d["sport"] ?: "football"
         val explicit = id > 0 && id.toString() in s.matchAlerts
         val aekScored = d["aekScored"] == "1" || d["aek"].isNullOrEmpty()
-        val allowed = explicit || s.wants(sport, kind) // γκολ ΑΕΚ και αντιπάλου: ένα είδος «goals»
+        val allowed = explicit || s.wants(sport, kind) || (kind == "live" && s.nLive && sport in s.sports) // γκολ ΑΕΚ και αντιπάλου: ένα είδος «goals»· «live» = αθόρυβη ενημέρωση της ζωντανής
         if (!allowed) return
 
         // Ήσυχες ώρες 01:00–08:00: περνάνε μόνο τα γκολ της ΑΕΚ (και η αθόρυβη ζωντανή)
@@ -117,18 +123,27 @@ object Notifs {
         val status = d["status"] ?: ""
         val liveNow = status !in setOf("", "upcoming", "finished", "postponed")
         when (kind) {
-            "live" -> {} // χωρίς μόνιμη ειδοποίηση αγώνα
+            "live" -> {} // μόνο το Live Update (παρακάτω)
             // Γκολ (ΑΕΚ ή αντιπάλου — ίδια ειδοποίηση, ίδιος ήχος). Ακύρωση, σετ, πέναλτι: κανονική ειδοποίηση (και ενημερώνεται και η ζωντανή)
             "goals" -> goal(ctx, d, sp, loud = ev == "goal" && !sp)
             "startend" -> when {
                 ev == "ft" -> final(ctx, d, sp)
                 ev == "postponed" -> event(ctx, d, sp, CH_MATCH, SLOT_LIVE)
-                status == "live" || status == "q1" -> event(ctx, d, sp, CH_MATCH, SLOT_LIVE) // σέντρα: μετά γίνεται η ζωντανή
+                status == "live" || status == "q1" -> event(ctx, d, sp, CH_MATCH, if (s.nLive) SLOT_EVENT else SLOT_LIVE) // σέντρα: μετά γίνεται η ζωντανή
                 else -> event(ctx, d, sp, CH_MATCH, SLOT_EVENT) // ημίχρονο, δεκάλεπτα: κανονική ειδοποίηση
             }
             "cards" -> event(ctx, d, sp, CH_QUIET, SLOT_EVENT)
             "reminder" -> reminder(ctx, d)
         }
+        // Ζωντανός αγώνας: μία ειδοποίηση που ενημερώνεται στη θέση της (Android 16: Live Update)
+        if (kind in setOf("goals", "startend", "cards", "live") && ev != "ft") liveUpdate(ctx, d, s)
+    }
+
+    /** Ζωντανή ειδοποίηση αγώνα: μόνο όταν ο αγώνας παίζεται και ο χρήστης την έχει ανοιχτή. */
+    private fun liveUpdate(ctx: Context, d: Map<String, String>, s: Settings) {
+        if (!s.nLive) return
+        if ((d["status"] ?: "") in setOf("", "upcoming", "postponed", "finished")) return
+        live(ctx, d, spoiler = false, alert = false)
     }
 
     /* ───────── Βοηθητικά ───────── */
@@ -436,9 +451,16 @@ object Notifs {
     }
     private fun stopTicker(ctx: Context, id: Long) { ctx.getSystemService(AlarmManager::class.java)?.cancel(tickIntent(ctx, id)) }
 
-    /** Παλιά ρολόγια της μόνιμης ειδοποίησης (έως 0.9.3): απλώς σβήνουν. */
-    fun tick(ctx: Context, id: Long, @Suppress("UNUSED_PARAMETER") s: Settings) {
-        stopTicker(ctx, id); forget(ctx, id)
-        NotificationManagerCompat.from(ctx).cancel(tag(id), SLOT_LIVE)
+    /** Κάθε ~1′: ξαναζωγραφίζει τη ζωντανή (το λεπτό «τρέχει»). Σταματά 3,5 ώρες μετά το τελευταίο μήνυμα ή αν κλείσει η επιλογή. */
+    fun tick(ctx: Context, id: Long, s: Settings) {
+        val raw = store(ctx).getString("m$id", null)
+        val d = raw?.let { r -> runCatching { JSONObject(r).let { j -> j.keys().asSequence().associateWith { k -> j.optString(k) } } }.getOrNull() }
+        val at = d?.get("_at")?.toLongOrNull() ?: 0L
+        if (d == null || !s.nLive || System.currentTimeMillis() - at > 3 * 3_600_000L + 1_800_000L) {
+            stopTicker(ctx, id); forget(ctx, id)
+            NotificationManagerCompat.from(ctx).cancel(tag(id), SLOT_LIVE)
+            return
+        }
+        live(ctx, d, spoiler = false, alert = false, fromTick = true)
     }
 }

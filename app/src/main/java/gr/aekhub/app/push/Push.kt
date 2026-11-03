@@ -21,7 +21,7 @@ object Push {
     private const val SP = "push"
     private const val KEY = "topics"
 
-    fun available(ctx: Context) = FirebaseApp.getApps(ctx).isNotEmpty()
+    fun available(ctx: Context) = !gr.aekhub.app.BuildConfig.DEV && FirebaseApp.getApps(ctx).isNotEmpty() // το dev APK δεν έχει Firebase
 
     fun allowed(ctx: Context) = Build.VERSION.SDK_INT < 33 ||
         ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
@@ -36,6 +36,7 @@ object Push {
             if (s.wants(sp, Kinds.STARTEND)) add("m_${sp}_startend")
             if (s.wants(sp, Kinds.CARDS)) add("m_${sp}_cards")
             if (s.wants(sp, Kinds.REMINDER)) add("m_${sp}_reminder")
+            if (s.nLive) add("m_${sp}_live") // αθόρυβες ενημερώσεις για τη ζωντανή ειδοποίηση αγώνα (Live Update)
         }
         if (s.nBreaking) add("news_breaking")
         s.matchAlerts.forEach { add("match_$it") }

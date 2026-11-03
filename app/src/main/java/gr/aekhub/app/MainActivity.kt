@@ -108,6 +108,20 @@ class MainActivity : ComponentActivity() {
         if (p > 0 || m > 0 || t.isNotEmpty()) deep.value = Deep(p, m, t)
     }
 
+    /** Συντομεύσεις στο εικονίδιο (πάτημα-κράτημα): Αγώνες, Βαθμολογίες, Ειδήσεις. */
+    private fun shortcuts() = runCatching {
+        fun sc(id: String, label: String, tab: String, icon: Int) = androidx.core.content.pm.ShortcutInfoCompat.Builder(this, id)
+            .setShortLabel(label).setLongLabel(label)
+            .setIcon(androidx.core.graphics.drawable.IconCompat.createWithResource(this, icon))
+            .setIntent(Intent(this, MainActivity::class.java).setAction(Intent.ACTION_VIEW).putExtra(EXTRA_TAB, tab))
+            .build()
+        androidx.core.content.pm.ShortcutManagerCompat.setDynamicShortcuts(this, listOf(
+            sc("matches", "Αγώνες", "matches", R.drawable.nav_programma),
+            sc("standings", "Βαθμολογίες", "standings", R.drawable.nav_football),
+            sc("home", "Ειδήσεις", "home", R.drawable.nav_home),
+        ))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -119,6 +133,8 @@ class MainActivity : ComponentActivity() {
             .components { add(SvgDecoder.Factory()) }
             .crossfade(true).build())
         Push.channels(this)
+        shortcuts()
+        gr.aekhub.app.widget.WidgetData.refreshAsync(applicationContext) // widget/πλακίδιο: φρέσκα δεδομένα μόλις ανοίγει το app
         Ads.start(this)
         val prefs = Prefs(applicationContext)
         if (savedInstanceState == null) readIntent(intent)

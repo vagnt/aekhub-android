@@ -37,6 +37,8 @@ jobs:
           set -o pipefail
           ./gradlew --no-daemon assembleRelease 2>&1 | tee build.log
           if [ -n "$PLAY_KS" ]; then AEK_KEYSTORE="$PLAY_KS" ./gradlew --no-daemon bundleRelease 2>&1 | tee -a build.log; fi
+          # APK για τον dev (εργαλεία προσομοίωσης αγώνα): ξεχωριστό πακέτο gr.aekhub.app.dev, εγκαθίσταται δίπλα στο κανονικό app
+          ./gradlew --no-daemon assembleDevtools 2>&1 | tee -a build.log
       - name: Errors
         if: failure()
         run: |
@@ -46,6 +48,8 @@ jobs:
           V=$(grep versionName app/build.gradle.kts | head -1 | sed -E 's/.*"(.*)".*/\1/')
           cp app/build/outputs/apk/release/app-release.apk "AEKHub-$V-build${{ github.run_number }}.apk"
           echo "APK=AEKHub-$V-build${{ github.run_number }}.apk" >> $GITHUB_ENV
+          cp app/build/outputs/apk/devtools/app-devtools.apk "AEKHub-DEV-$V-build${{ github.run_number }}.apk"
+          echo "DEVAPK=AEKHub-DEV-$V-build${{ github.run_number }}.apk" >> $GITHUB_ENV
           echo "VER=$V" >> $GITHUB_ENV
           # Το αρχείο για το Play Store (μόνο όταν υπογράφεται με το κλειδί upload)
           if [ -n "$PLAY_KS" ]; then
@@ -58,6 +62,7 @@ jobs:
           path: |
             ${{ env.APK }}
             ${{ env.AAB }}
+            ${{ env.DEVAPK }}
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
@@ -67,3 +72,4 @@ jobs:
           files: |
             ${{ env.APK }}
             ${{ env.AAB }}
+            ${{ env.DEVAPK }}
