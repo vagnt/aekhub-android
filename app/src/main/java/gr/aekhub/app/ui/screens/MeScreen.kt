@@ -159,6 +159,10 @@ fun MeScreen(openPost: (Long) -> Unit) {
             item {
                 Group("ΓΕΝΙΚΑ") {
                     Toggle(Icons.Filled.Bolt, "Ζωντανός αγώνας στην οθόνη κλειδώματος", "Σκορ και λεπτό που αλλάζουν μόνα τους χωρίς να ανοίξεις το app. Στο Android 16 εμφανίζεται και ως σκορ στη γραμμή πάνω.", null, s.nLive) { scope.launch { prefs.setFlag("live", it) } }
+                    if (s.nLive) {
+                        HorizontalDivider(Modifier.padding(start = 68.dp, end = 16.dp), thickness = 1.dp, color = C.Line)
+                        Toggle(Icons.Filled.SportsScore, "Σαν πίνακας σκορ", "Σήμα – σκορ – σήμα, όπως στο Match Center. Κλειστό: το στυλ του Android 16 (μπάρα αγώνα και, σε Pixel, σκορ στη γραμμή πάνω).", null, s.nLiveBoard) { scope.launch { prefs.setFlag("liveBoard", it) } }
+                    }
                     HorizontalDivider(Modifier.padding(start = 68.dp, end = 16.dp), thickness = 1.dp, color = C.Line)
                     Toggle(Icons.Filled.Bedtime, "Ήσυχες ώρες", "Από 01:00 έως 08:00 το κινητό δεν χτυπάει. Εξαίρεση: τα γκολ της ΑΕΚ.", null, s.nQuiet) { scope.launch { prefs.setFlag("quiet", it) } }
                     HorizontalDivider(Modifier.padding(start = 68.dp, end = 16.dp), thickness = 1.dp, color = C.Line)

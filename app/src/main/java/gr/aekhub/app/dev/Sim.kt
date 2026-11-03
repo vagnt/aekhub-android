@@ -25,6 +25,7 @@ class Sim(private val ctx: Context) {
     private var home = "ΑΕΚ"; private var away = "Αντίπαλος"
     private var hlogo = ""; private var alogo = ""
     private var comp = "Δοκιμαστικός αγώνας"
+    private var aekAway = false // στον πραγματικό αγώνα η ΑΕΚ είναι φιλοξενούμενη (μέσα στην προσομοίωση η ΑΕΚ είναι πάντα το «home»)
     private var sh = 0; private var sa = 0           // σκορ (στο βόλεϊ: σετ)
     private var ph = 0; private var pa = 0           // βόλεϊ: πόντοι του σετ
     private var setNo = 1
@@ -37,7 +38,7 @@ class Sim(private val ctx: Context) {
 
     fun log(s: String) { onLog(java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US).format(java.util.Date()) + "  " + s) }
 
-    fun label() = "$home – $away" + (if (id != 999001L) " (πραγματικός αγώνας #$id)" else " (ψεύτικος)")
+    fun label() = (if (aekAway) "$away – $home" else "$home – $away") + (if (id != 999001L) " (πραγματικός αγώνας #$id)" else " (ψεύτικος)")
     fun status(): String = when (status) {
         "upcoming" -> "Δεν έχει ξεκινήσει"
         "finished" -> "Τελικό $sh–$sa"
@@ -49,8 +50,10 @@ class Sim(private val ctx: Context) {
         val st = runCatching { WidgetData.fetch(ctx) }.getOrNull() ?: return
         if (st.home.isBlank()) return
         home = st.home; away = st.away; hlogo = st.homeLogo; alogo = st.awayLogo; comp = st.comp.ifBlank { comp }
-        if (st.aek == "away") { /* η ΑΕΚ φιλοξενείται: κρατάμε την ΑΕΚ ως «home» στην προσομοίωση για απλότητα */ val t = home; home = away; away = t; val l = hlogo; hlogo = alogo; alogo = l }
+        aekAway = st.aek == "away"
+        if (aekAway) { val t = home; home = away; away = t; val l = hlogo; hlogo = alogo; alogo = l }
         id = st.id.takeIf { it > 0 } ?: id
+        sport = when (st.sport) { "basketball" -> "basketball"; "volleyball" -> "volleyball"; "handball" -> "handball"; else -> "football" } // το σωστό άθλημα του αγώνα
         onChange(); log("Φορτώθηκαν από το site: $home – $away")
     }
 
@@ -75,12 +78,16 @@ class Sim(private val ctx: Context) {
     private fun data(kind: String, ev: String, title: String, body: String, side: String = ""): Map<String, String> {
         val m = HashMap<String, String>()
         m["kind"] = kind; m["ev"] = ev; m["match"] = id.toString(); m["sport"] = sport
-        m["home"] = home; m["away"] = away; m["hlogo"] = hlogo; m["alogo"] = alogo; m["aek"] = "home"
-        m["sh"] = sh.toString(); m["sa"] = sa.toString(); m["status"] = status; m["comp"] = comp
-        m["title"] = title; m["body"] = body; m["side"] = side; m["aekScored"] = if (side == "home") "1" else "0"
+        // Στη σωστή σειρά του πραγματικού αγώνα (αν η ΑΕΚ παίζει εκτός, πρώτος ο αντίπαλος)
+        val sw = aekAway
+        m["home"] = if (sw) away else home; m["away"] = if (sw) home else away
+        m["hlogo"] = if (sw) alogo else hlogo; m["alogo"] = if (sw) hlogo else alogo; m["aek"] = if (sw) "away" else "home"
+        m["sh"] = (if (sw) sa else sh).toString(); m["sa"] = (if (sw) sh else sa).toString(); m["status"] = status; m["comp"] = comp
+        m["title"] = title; m["body"] = body; m["aekScored"] = if (side == "home") "1" else "0"
+        m["side"] = when (side) { "home" -> if (sw) "away" else "home"; "away" -> if (sw) "home" else "away"; else -> "" }
         m["min"] = if (sport == "volleyball") "" else "$min′"
         m["phase"] = phase(); m["statusLabel"] = phase()
-        m["goals"] = marks.joinToString(","); m["scorers"] = scorers.joinToString(" · ")
+        m["goals"] = marks.joinToString(",") { if (!sw) it else (if (it.startsWith("h")) "a" else "h") + it.drop(1) }; m["scorers"] = scorers.joinToString(" · ")
         if ((status == "live" || status.startsWith("q")) && sport != "volleyball") {
             m["clockB"] = base.toString(); m["clockL"] = half().toString()
             m["clockS"] = (System.currentTimeMillis() - (min - 1 - base).coerceAtLeast(0) * 60_000L).toString() // το λεπτό «τρέχει» κανονικά
@@ -97,16 +104,16 @@ class Sim(private val ctx: Context) {
         onChange()
     }
 
-    private fun vs() = "$home $sh–$sa $away"
+    private fun vs() = if (aekAway) "$away $sa–$sh $home" else "$home $sh–$sa $away"
     private fun scoreTitle(prefix: String, side: String): String {
         val h = if (side == "home") "[$sh]" else "$sh"; val a = if (side == "away") "[$sa]" else "$sa"
-        return "$prefix · $home $h–$a $away"
+        return if (aekAway) "$prefix · $away $a–$h $home" else "$prefix · $home $h–$a $away"
     }
 
     fun start() {
         if (status != "upcoming") { log("Ο αγώνας έχει ήδη ξεκινήσει"); return }
         status = if (sport == "basketball") "q1" else "live"; min = if (sport == "basketball") 1 else 1; base = 0
-        send("startend", "start", (if (sport == "volleyball") "Ξεκίνησε · " else "Σέντρα · ") + "$home – $away", comp)
+        send("startend", "start", (if (sport == "volleyball") "Ξεκίνησε · " else if (sport == "basketball") "Τζάμπολ · " else "Σέντρα · ") + (if (aekAway) "$away – $home" else "$home – $away"), comp)
     }
 
     /** Γκολ / καλάθι / πόντος. Στο ποδόσφαιρο και στα σετ του βόλεϊ: δυνατή ειδοποίηση· στο μπάσκετ/χάντμπολ: σιωπηλή ενημέρωση της ζωντανής. */
@@ -126,7 +133,7 @@ class Sim(private val ctx: Context) {
         if (sport != "volleyball") return
         if (status == "upcoming") start()
         if (side == "home") sh++ else sa++
-        val t = "Τέλος σετ · $home $sh–$sa $away"
+        val t = "Τέλος σετ · " + vs()
         val pts = "$ph–$pa"
         ph = 0; pa = 0; setNo++
         if (sh == 3 || sa == 3) { finish(); return }
@@ -137,7 +144,7 @@ class Sim(private val ctx: Context) {
         val last = history.removeLastOrNull() ?: run { log("Δεν υπάρχει τίποτα να ακυρωθεί"); return }
         if (last.first == "home") { sh -= last.second; scorers.removeLastOrNull() } else sa -= last.second
         marks.removeLastOrNull()
-        send("goals", "cancel", "Ακυρώθηκε γκολ · $home $sh–$sa $away", "VAR — το σκορ διορθώθηκε")
+        send("goals", "cancel", "Ακυρώθηκε γκολ · " + vs(), "VAR — το σκορ διορθώθηκε")
     }
 
     fun advance(n: Int) { if (status == "live") { min += n; send("live", "live", vs(), ""); } else log("Μόνο όσο παίζεται") }
@@ -145,30 +152,30 @@ class Sim(private val ctx: Context) {
     fun halftime() {
         if (status != "live") { log("Μόνο όσο παίζεται"); return }
         min = half(); status = "halftime"
-        send("startend", "ht", "Ημίχρονο · $home $sh–$sa $away", comp)
+        send("startend", "ht", "Ημίχρονο · " + vs(), comp)
     }
 
     fun secondHalf() {
         if (status != "halftime") { log("Πρώτα το ημίχρονο"); return }
         status = "live"; base = half(); min = half() + 1
-        send("startend", "period", "Ξεκίνησε το Β΄ ημίχρονο · $home $sh–$sa $away", comp)
+        send("startend", "period", "Ξεκίνησε το Β΄ ημίχρονο · " + vs(), comp)
     }
 
     fun endQuarter() {
         if (!status.startsWith("q")) { log("Μόνο στο μπάσκετ, όσο παίζεται"); return }
-        send("startend", "period", "Τέλος ${q}ου δεκάλεπτου · $home $sh–$sa $away", comp)
+        send("startend", "period", "Τέλος ${q}ου δεκάλεπτου · " + vs(), comp)
     }
 
     fun nextQuarter() {
         if (!status.startsWith("q") || q >= 4) { log("Δεν υπάρχει επόμενο δεκάλεπτο"); return }
         q++; status = "q$q"; min = q * 10 - 9
-        send("startend", "period", "Ξεκίνησε το ${q}ο δεκάλεπτο · $home $sh–$sa $away", comp)
+        send("startend", "period", "Ξεκίνησε το ${q}ο δεκάλεπτο · " + vs(), comp)
     }
 
     fun finish() {
         if (status == "upcoming") { log("Ο αγώνας δεν έχει ξεκινήσει"); return }
         status = "finished"
-        send("startend", "ft", "Τελικό · $home $sh–$sa $away", "Πάτα για στατιστικά και βαθμολογία")
+        send("startend", "ft", "Τελικό · " + vs(), "Πάτα για στατιστικά και βαθμολογία")
     }
 
     fun reminder() = send("reminder", "reminder", "Σε 30′ η σέντρα · $home – $away", "$comp · AEK Arena · Magenta TV")

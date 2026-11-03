@@ -143,7 +143,7 @@ object Notifs {
     private fun liveUpdate(ctx: Context, d: Map<String, String>, s: Settings) {
         if (!s.nLive) return
         if ((d["status"] ?: "") in setOf("", "upcoming", "postponed", "finished")) return
-        live(ctx, d, spoiler = false, alert = false)
+        live(ctx, d, spoiler = false, alert = false, board = s.nLiveBoard)
     }
 
     /* ───────── Βοηθητικά ───────── */
@@ -251,7 +251,7 @@ object Notifs {
     private fun spoilerTitle(d: Map<String, String>) = vs(d)
 
     /* ───────── Η ζωντανή ειδοποίηση ───────── */
-    fun live(ctx: Context, d: Map<String, String>, spoiler: Boolean, alert: Boolean, fromTick: Boolean = false) {
+    fun live(ctx: Context, d: Map<String, String>, spoiler: Boolean, alert: Boolean, fromTick: Boolean = false, board: Boolean = true) {
         val id = d["match"]?.toLongOrNull() ?: return
         val status = d["status"] ?: ""
         val done = status == "finished" || status == "postponed"
@@ -277,6 +277,7 @@ object Notifs {
         b.setLargeIcon(crest(ctx, aekLogo(d)) ?: hubLogo(ctx))
         // Μπάρα αγώνα: ποδόσφαιρο/futsal/πόλο με το λεπτό, μπάσκετ με το δεκάλεπτο
         var rich: Any? = null
+        if (board) scoreboard(ctx, b, d, spoiler, done, min, phase)
         if (!done) {
             val m = Regex("""^(\d+)""").find(min)?.groupValues?.get(1)?.toIntOrNull()
             val q = Regex("""^q(\d)$""").find(status)?.groupValues?.get(1)?.toIntOrNull()
@@ -290,6 +291,10 @@ object Notifs {
                 status == "halftime" || status == "ht" -> total / 2
                 else -> null
             }
+            if (board) {
+                // Πίνακας σκορ (δικό μας σχέδιο): η μπάρα μέσα στην ανοιχτή ειδοποίηση· χωρίς «προώθηση» του Android 16
+                boardBar(b, pos, total)
+            } else {
             if (pos != null) {
                 b.setProgress(total, pos, false)
                 if (Build.VERSION.SDK_INT >= 36) rich = matchBar(ctx, d, segs, pos)
@@ -299,11 +304,44 @@ object Notifs {
                 putBoolean("android.requestPromotedOngoing", true)
                 putString("android.shortCriticalText", if (spoiler) (min.ifBlank { "LIVE" }) else (d["sh"] ?: "0") + "–" + (d["sa"] ?: "0"))
             })
+            }
         } else b.setTimeoutAfter(3 * 3_600_000L)
         val n = b.build()
         val out = rich?.let { st -> runCatching { android.app.Notification.Builder.recoverBuilder(ctx, n).setStyle(st as android.app.Notification.Style).build() }.getOrNull() } ?: n
         try { NotificationManagerCompat.from(ctx).notify(tag(id), SLOT_LIVE, out) } catch (_: SecurityException) {}
         if (done) { stopTicker(ctx, id); forget(ctx, id) } else { if (!fromTick) remember(ctx, id, d); scheduleTick(ctx, id) }
+    }
+
+    /** Οι δύο όψεις (μαζεμένη/ανοιχτή) του πίνακα σκορ, με τα χρώματα του θέματος του κινητού. */
+    private var boardBig: android.widget.RemoteViews? = null
+    private fun scoreboard(ctx: Context, b: NotificationCompat.Builder, d: Map<String, String>, spoiler: Boolean, done: Boolean, min: String, phase: String) {
+        val small = android.widget.RemoteViews(ctx.packageName, R.layout.notif_board)
+        val big = android.widget.RemoteViews(ctx.packageName, R.layout.notif_board_big)
+        val hl = crest(ctx, d["hlogo"]) ?: hubLogo(ctx); val al = crest(ctx, d["alogo"]) ?: hubLogo(ctx)
+        val score = if (spoiler) "–" else (d["sh"] ?: "0") + " – " + (d["sa"] ?: "0")
+        val sub = when { done -> "Τελικό"; min.isNotBlank() -> min; else -> phase }
+        for (v in listOf(small, big)) {
+            hl?.let { v.setImageViewBitmap(R.id.nb_hlogo, it) }; al?.let { v.setImageViewBitmap(R.id.nb_alogo, it) }
+            v.setTextViewText(R.id.nb_home, d["home"].orEmpty()); v.setTextViewText(R.id.nb_away, d["away"].orEmpty())
+            v.setTextViewText(R.id.nb_score, score); v.setTextViewText(R.id.nb_min, sub)
+        }
+        big.setTextViewText(R.id.nb_comp, d["comp"].orEmpty())
+        val sc = d["scorers"].orEmpty()
+        big.setTextViewText(R.id.nb_phase, listOf(if (done) "" else phase, if (spoiler) "" else sc).filter { it.isNotBlank() }.distinct().joinToString(" · "))
+        big.setViewVisibility(R.id.nb_bar, android.view.View.GONE)
+        boardBig = big
+        b.setLargeIcon(null as Bitmap?)
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setCustomContentView(small)
+            .setCustomBigContentView(big)
+            .setCustomHeadsUpContentView(small)
+    }
+    private fun boardBar(b: NotificationCompat.Builder, pos: Int?, total: Int) {
+        val big = boardBig ?: return
+        if (pos == null) return
+        big.setViewVisibility(R.id.nb_bar, android.view.View.VISIBLE)
+        big.setProgressBar(R.id.nb_bar, total, pos.coerceIn(0, total), false)
+        b.setCustomBigContentView(big)
     }
 
     /**
@@ -461,6 +499,6 @@ object Notifs {
             NotificationManagerCompat.from(ctx).cancel(tag(id), SLOT_LIVE)
             return
         }
-        live(ctx, d, spoiler = false, alert = false, fromTick = true)
+        live(ctx, d, spoiler = false, alert = false, fromTick = true, board = s.nLiveBoard)
     }
 }
