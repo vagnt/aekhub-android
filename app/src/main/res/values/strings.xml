@@ -4,4 +4,15 @@
     <string name="widget_name">ΑΕΚ — αγώνας</string>
     <string name="widget_desc">Ζωντανό σκορ ή ο επόμενος αγώνας της ΑΕΚ</string>
     <string name="tile_label">ΑΕΚ</string>
+    <string name="widget_desc_list">Οι επόμενοι αγώνες της ΑΕΚ, με ζωντανό σκορ</string>
+    <string name="widget_desc_stand">Η βαθμολογία με την ΑΕΚ τονισμένη</string>
+    <string name="widget_desc_news">Οι τελευταίες ειδήσεις του AEK Hub</string>
+    <string name="w_all">ΑΕΚ · Αγώνες (όλα τα αθλήματα)</string>
+    <string name="w_football">ΑΕΚ · Αγώνες Ποδοσφαίρου</string>
+    <string name="w_basket">ΑΕΚ · Αγώνες Μπάσκετ</string>
+    <string name="w_volley">ΑΕΚ · Αγώνες Βόλεϊ</string>
+    <string name="w_handball">ΑΕΚ · Αγώνες Χάντμπολ</string>
+    <string name="w_stand_f">ΑΕΚ · Βαθμολογία Ποδοσφαίρου</string>
+    <string name="w_stand_b">ΑΕΚ · Βαθμολογία Μπάσκετ</string>
+    <string name="w_news">ΑΕΚ · Νέα</string>
 </resources>
