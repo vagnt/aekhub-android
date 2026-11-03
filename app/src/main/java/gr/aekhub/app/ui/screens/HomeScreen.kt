@@ -133,6 +133,8 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
                 h == null && error -> ErrorBox { key++ }
                 h == null -> Loading()
                 else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = side, end = side, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // ⏱ Αντίστροφη μέτρηση για τον επιλεγμένο αγώνα (ίδιος με την αρχική του site)
+                    h.next?.takeIf { !it.live && !it.finished }?.let { nm -> item(key = "countdown") { gr.aekhub.app.ui.components.NextMatchCountdown(nm) { openMatch(nm.id) } } }
                     h.breaking?.takeIf { it.text.isNotBlank() }?.let { b ->
                         item(key = "breaking") {
                             val uri = LocalUriHandler.current

@@ -129,6 +129,8 @@ data class MatchCard(
     val broadcast: String = "",
     val aek: String = "",
     val link: String = "",
+    /** Ώρα σέντρας ISO (μόνο στο «next» της αρχικής). */
+    val kickoff: String = "",
 ) {
     val finished get() = status == "finished"
     val upcoming get() = status == "upcoming"
@@ -302,6 +304,8 @@ data class Breaking(val text: String = "", val url: String = "", val label: Stri
 
 @Serializable
 data class HomeData(
+    /** ⏱ Ο αγώνας της αντίστροφης μέτρησης (ίδιος με τη μπάρα «Επόμενος αγώνας» της αρχικής του site). */
+    val next: MatchCard? = null,
     val liveHero: LiveHero? = null,
     val breaking: Breaking? = null,
     val socials: List<Social> = emptyList(),
