@@ -54,8 +54,8 @@ val SlantBoth = GenericShape { size, _ ->
 @Composable
 fun GoldHeader(text: String, modifier: Modifier = Modifier, action: String? = null, onAction: (() -> Unit)? = null) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.clip(Slant).background(C.Gold).padding(start = 14.dp, end = 26.dp, top = 6.dp, bottom = 6.dp)) {
-            Text(text.upperGr(), style = disp(22), color = C.Ink)
+        Box(Modifier.weight(3f, fill = false).clip(Slant).background(C.Gold).padding(start = 14.dp, end = 26.dp, top = 6.dp, bottom = 6.dp)) {
+            FitText(text.upperGr(), style = disp(22), color = C.Ink, minSize = 14f)
         }
         Box(Modifier.weight(1f).padding(horizontal = 10.dp).height(1.dp).background(C.Line))
         if (action != null && onAction != null) Text(
@@ -77,7 +77,7 @@ fun matchMeta(m: MatchCard) = listOf(m.sportLabel, m.competition).filter { it.is
 private fun TeamCell(logo: String, name: String, aek: Boolean, modifier: Modifier) =
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Crest(logo, name, 48.dp)
-        Text(name.upperGr(), style = disp(16), color = if (aek) C.Gold else C.Text, textAlign = TextAlign.Center, maxLines = 2, softWrap = name.trim().contains(' '), overflow = TextOverflow.Ellipsis)
+        FitText(name.upperGr(), Modifier.fillMaxWidth(), style = disp(16), color = if (aek) C.Gold else C.Text, textAlign = TextAlign.Center, maxLines = 2, minSize = 10f)
     }
 
 /** Κεντρικό κομμάτι: ώρα, σκορ ή LIVE. */

@@ -1,5 +1,6 @@
 package gr.aekhub.app.widget
 
+import gr.aekhub.app.ui.components.upperGr
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -53,12 +54,14 @@ internal object W {
     val RED = Color(0xFFFF453A)
     val ATHENS: ZoneId = ZoneId.of("Europe/Athens")
     val COND = FontFamily("sans-serif-condensed")
+    /** Μέγεθος γραμματοσειράς συστήματος: τα widgets μένουν στο 100% ώστε να μη σπάνε (μπαίνει σε κάθε provideGlance). */
+    @Volatile var FS = 1f
 }
 
 internal fun cp(c: Color) = ColorProvider(c)
 
 internal fun ts(size: Float, c: Color = W.TEXT, w: FontWeight = FontWeight.Bold, a: TextAlign? = null, cond: Boolean = false) =
-    TextStyle(color = cp(c), fontSize = size.sp, fontWeight = w, textAlign = a, fontFamily = if (cond) W.COND else null)
+    TextStyle(color = cp(c), fontSize = (size / W.FS.coerceAtLeast(1f)).sp, fontWeight = w, textAlign = a, fontFamily = if (cond) W.COND else null)
 
 internal fun openApp(ctx: Context, match: Long = 0, post: Long = 0, tab: String = ""): Action = actionStartActivity(Intent(ctx, MainActivity::class.java).apply {
     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -105,7 +108,7 @@ internal fun Crest(b: Bitmap?, size: Int) {
 }
 
 internal fun dayShort(ms: Long): String = if (ms <= 0) "" else
-    Instant.ofEpochMilli(ms).atZone(W.ATHENS).format(DateTimeFormatter.ofPattern("EEE", Locale("el"))).uppercase().replace(".", "")
+    Instant.ofEpochMilli(ms).atZone(W.ATHENS).format(DateTimeFormatter.ofPattern("EEE", Locale("el"))).upperGr().replace(".", "")
 internal fun dateShort(ms: Long): String = if (ms <= 0) "" else
     Instant.ofEpochMilli(ms).atZone(W.ATHENS).format(DateTimeFormatter.ofPattern("d/M"))
 internal fun dayDate(ms: Long): String = if (ms <= 0) "" else

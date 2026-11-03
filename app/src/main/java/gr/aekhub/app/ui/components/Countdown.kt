@@ -95,7 +95,7 @@ fun NextMatchCountdown(m: MatchCard, open: () -> Unit) {
 private fun Team(name: String, logo: String, modifier: Modifier, end: Boolean) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = if (end) Arrangement.End else Arrangement.Start) {
         if (!end) { Crest(logo); Spacer(Modifier.width(8.dp)) }
-        Text(name.uppercase(), Modifier.weight(1f, fill = false), style = disp(15), maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = if (end) TextAlign.End else TextAlign.Start)
+        FitText(name.upperGr(), Modifier.weight(1f, fill = false), style = disp(15), textAlign = if (end) TextAlign.End else TextAlign.Start, minSize = 10f)
         if (end) { Spacer(Modifier.width(8.dp)); Crest(logo) }
     }
 }

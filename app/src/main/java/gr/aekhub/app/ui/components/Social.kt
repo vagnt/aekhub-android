@@ -142,7 +142,7 @@ fun CategoryMenu(items: List<Triple<String, String, String>>, onPick: (String, S
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
             ) {
                 Image(painterResource(catIcon(icon)), null, Modifier.size(38.dp), contentScale = ContentScale.Fit)
-                Text(name, style = body(11, FontWeight.ExtraBold, C.Text), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                FitText(name, style = body(11, FontWeight.ExtraBold, C.Text), textAlign = androidx.compose.ui.text.style.TextAlign.Center, minSize = 8f)
             }
         }
     }
@@ -159,7 +159,7 @@ fun SocialStrip(list: List<Social>) {
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Column(Modifier.weight(1f)) {
-            Text("ΑΚΟΛΟΥΘΗΣΕ ΜΑΣ", style = disp(16), color = C.Gold)
+            FitText("ΑΚΟΛΟΥΘΗΣΕ ΜΑΣ", style = disp(16), color = C.Gold, minSize = 11f)
             Text(list.firstOrNull { it.handle.isNotBlank() }?.handle ?: "AEK Hub", style = body(11, FontWeight.Bold, C.Muted), maxLines = 1)
         }
         list.forEach { s ->

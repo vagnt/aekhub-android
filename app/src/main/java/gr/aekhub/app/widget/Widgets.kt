@@ -1,5 +1,6 @@
 package gr.aekhub.app.widget
 
+import gr.aekhub.app.ui.components.upperGr
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.graphics.Bitmap
@@ -167,6 +168,7 @@ class MatchWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        W.FS = context.resources.configuration.fontScale
         val st = WidgetData.current(context)
         val l = st?.let { logos(context, listOf(it.homeLogo, it.awayLogo), 200) }.orEmpty()
         provideContent {
@@ -196,6 +198,7 @@ class MatchesWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        W.FS = context.resources.configuration.fontScale
         val sports = sportsOf(providerName(context, id))
         val list = WidgetList.matches(context, sports)
         val l = logos(context, list.take(6).flatMap { listOf(it.homeLogo, it.awayLogo) }, 120)
@@ -271,6 +274,7 @@ class StandingsWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        W.FS = context.resources.configuration.fontScale
         val basket = providerName(context, id).contains("Basketball")
         val st = withContext(Dispatchers.IO) {
             Api.init(context.applicationContext)
@@ -336,6 +340,7 @@ class NewsWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        W.FS = context.resources.configuration.fontScale
         val items = withContext(Dispatchers.IO) {
             Api.init(context.applicationContext)
             val sp = context.applicationContext.getSharedPreferences("widget", Context.MODE_PRIVATE)
@@ -366,7 +371,7 @@ class NewsWidget : GlanceAppWidget() {
                             Spacer(GlanceModifier.width(10.dp))
                         }
                         Column(GlanceModifier.defaultWeight()) {
-                            if (first.category.isNotBlank()) Text(first.category.uppercase(), style = ts(9.5f, W.GOLD, FontWeight.Bold, cond = true), maxLines = 1)
+                            if (first.category.isNotBlank()) Text(first.category.upperGr(), style = ts(9.5f, W.GOLD, FontWeight.Bold, cond = true), maxLines = 1)
                             Text(first.title, style = ts(14f, W.TEXT, FontWeight.Bold, cond = true), maxLines = 3)
                         }
                     }
@@ -374,7 +379,7 @@ class NewsWidget : GlanceAppWidget() {
                         Spacer(GlanceModifier.height(5.dp))
                         Column(GlanceModifier.fillMaxWidth().defaultWeight().background(cp(W.CARD)).cornerRadius(12.dp).padding(horizontal = 10.dp, vertical = 5.dp)
                             .clickable(openApp(context, post = p.id)), verticalAlignment = Alignment.CenterVertically) {
-                            if (p.category.isNotBlank()) Text(p.category.uppercase(), style = ts(9f, W.GOLD, FontWeight.Bold, cond = true), maxLines = 1)
+                            if (p.category.isNotBlank()) Text(p.category.upperGr(), style = ts(9f, W.GOLD, FontWeight.Bold, cond = true), maxLines = 1)
                             Text(p.title, style = ts(12.5f, W.TEXT, FontWeight.Bold), maxLines = 2)
                         }
                     }

@@ -167,20 +167,6 @@ fun MatchScreen(id: Long, back: () -> Unit) {
             val sp = d.sponsor
             if (sp != null) SponsorBlock(d.id, sp, ::open) else gr.aekhub.app.ads.PresentedBy("match", Modifier.padding(horizontal = 16.dp))
         }
-        item(key = "actions") {
-            Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                if (d.status == "upcoming") ActionPill("Στο ημερολόγιο", Modifier.weight(1f)) {
-                    if (!gr.aekhub.app.share.ShareCard.addToCalendar(ctx, d)) android.widget.Toast.makeText(ctx, "Δεν βρέθηκε εφαρμογή ημερολογίου.", android.widget.Toast.LENGTH_SHORT).show()
-                }
-                ActionPill("Κοινοποίηση κάρτας", Modifier.weight(1f)) {
-                    scope.launch {
-                        val uri = gr.aekhub.app.share.ShareCard.build(ctx, d)
-                        if (uri != null) gr.aekhub.app.share.ShareCard.share(ctx, uri, (if (d.link.isNotBlank()) d.link else "https://aekhub.gr"))
-                        else android.widget.Toast.makeText(ctx, "Δεν έγινε η κάρτα. Δοκίμασε ξανά.", android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-        }
         d.stream?.let { s -> item(key = "stream") { StreamCard(s.thumb, s.label, s.kicker, s.state, if (playStream && s.embed.isNotBlank()) s.embed else null) { if (s.embed.isNotBlank()) playStream = true else open(s.url) } } }
         if (d.highlights.isNotEmpty()) item(key = "hl") {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -279,7 +265,7 @@ private fun Hero(d: MatchDetail, alert: Boolean, back: () -> Unit, toggleAlert: 
             }
             val comp = listOf(d.competition, d.matchday).filter { it.isNotBlank() }.joinToString(" · ")
             if (comp.isNotBlank()) Box(Modifier.widthIn(max = 340.dp).clip(SlantBoth).background(C.Gold).padding(horizontal = 18.dp, vertical = 6.dp)) {
-                Text(comp.upperGr(), style = disp(17), color = C.Ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                gr.aekhub.app.ui.components.FitText(comp.upperGr(), style = disp(17), color = C.Ink, minSize = 11f)
             }
             val date = runCatching { LocalDate.parse(d.date) }.getOrNull()
             Text(((date?.let { dayHeader(it) } ?: d.date) + if (d.time.isNotBlank()) " · " + d.time else ""), style = body(12, FontWeight.ExtraBold, C.Text2).copy(letterSpacing = 1.sp))
@@ -343,7 +329,7 @@ private fun ScoreBox(v: String, aek: Boolean) = Box(
 private fun TeamCol(logo: String, name: String, aek: Boolean, modifier: Modifier) =
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Crest(logo, name, 66.dp)
-        Text(name.upperGr(), style = disp(19), color = if (aek) C.Gold else C.Text, textAlign = TextAlign.Center, maxLines = 2, softWrap = name.trim().contains(' '), overflow = TextOverflow.Ellipsis)
+        gr.aekhub.app.ui.components.FitText(name.upperGr(), Modifier.fillMaxWidth(), style = disp(19), color = if (aek) C.Gold else C.Text, textAlign = TextAlign.Center, maxLines = 2, minSize = 11f)
     }
 
 @Composable
@@ -378,7 +364,7 @@ private fun StreamCard(thumb: String, label: String, kicker: String, state: Stri
                 if (state == "live") LiveDot(Color.White)
                 Text(if (state == "replay") "REPLAY" else "LIVE", style = body(11, FontWeight.ExtraBold, Color.White))
             }
-            Text(label.upperGr(), style = disp(20), color = C.Text, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            gr.aekhub.app.ui.components.FitText(label.upperGr(), Modifier.weight(1f), style = disp(20), color = C.Text, minSize = 13f)
         }
         if (playing != null) Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))) { gr.aekhub.app.ui.components.VideoPlayer(playing) }
         else Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(16.dp)).background(C.Panel2).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
@@ -403,13 +389,13 @@ private fun TimelineHeader(d: MatchDetail) = Row(
     verticalAlignment = Alignment.CenterVertically,
 ) {
     Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Crest(d.homeLogo, d.home, 20.dp); Text(d.home.upperGr(), style = disp(15), color = if (d.aek == "home") C.Gold else C.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Crest(d.homeLogo, d.home, 20.dp); gr.aekhub.app.ui.components.FitText(d.home.upperGr(), Modifier.weight(1f, fill = false), style = disp(15), color = if (d.aek == "home") C.Gold else C.Text, minSize = 10f)
     }
     Box(Modifier.clip(RoundedCornerShape(8.dp)).background(C.Gold).padding(horizontal = 10.dp, vertical = 2.dp)) {
         Text("${d.scoreHome.ifBlank { "0" }} - ${d.scoreAway.ifBlank { "0" }}", style = disp(20, FontWeight.Black), color = C.Ink)
     }
     Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End), verticalAlignment = Alignment.CenterVertically) {
-        Text(d.away.upperGr(), style = disp(15), color = if (d.aek == "away") C.Gold else C.Text, maxLines = 1, overflow = TextOverflow.Ellipsis); Crest(d.awayLogo, d.away, 20.dp)
+        gr.aekhub.app.ui.components.FitText(d.away.upperGr(), Modifier.weight(1f, fill = false), style = disp(15), color = if (d.aek == "away") C.Gold else C.Text, textAlign = TextAlign.End, minSize = 10f); Crest(d.awayLogo, d.away, 20.dp)
     }
 }
 
@@ -618,7 +604,7 @@ private fun TeamList(name: String, logo: String, xi: List<Player>, subs: List<Pl
     Column(modifier.clip(RoundedCornerShape(14.dp)).background(C.Panel).padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Crest(logo, name, 20.dp)
-            Text(name.upperGr(), style = disp(17), color = if (aek) C.Gold else C.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            gr.aekhub.app.ui.components.FitText(name.upperGr(), Modifier.weight(1f, fill = false), style = disp(17), color = if (aek) C.Gold else C.Text, minSize = 11f)
         }
         Box(Modifier.fillMaxWidth().height(2.dp).background(if (aek) C.Gold else C.Line2))
         xi.forEach { PlayerLine(it, aek) }
@@ -655,9 +641,3 @@ private fun SponsorBlock(matchId: Long, s: gr.aekhub.app.data.Sponsor, open: (St
     }
 }
 
-@Composable
-private fun ActionPill(text: String, modifier: Modifier, onClick: () -> Unit) {
-    Box(modifier.clip(RoundedCornerShape(14.dp)).background(C.Panel).border(1.dp, C.Line, RoundedCornerShape(14.dp)).clickable(onClick = onClick).padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
-        Text(text, style = body(13, FontWeight.ExtraBold, C.Gold))
-    }
-}

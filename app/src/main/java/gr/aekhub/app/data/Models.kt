@@ -46,7 +46,15 @@ data class AppConfig(
     val sports: List<SportItem> = emptyList(),
     val ads: AdsConfig = AdsConfig(),
     val socials: List<Social> = emptyList(),
+    /** 📅 Συνδρομή ημερολογίου (όπως στο site): link ICS + αθλήματα (k = football, volleyball_w …). */
+    val calendar: CalConfig? = null,
 )
+
+@Serializable
+data class CalConfig(val feed: String = "", val name: String = "AEK Hub", val groups: List<CalGroup> = emptyList())
+
+@Serializable
+data class CalGroup(val k: String, val l: String, val c: String = "", val n: Int = 0)
 
 @Serializable
 data class Social(val key: String, val label: String = "", val url: String, val handle: String = "")
