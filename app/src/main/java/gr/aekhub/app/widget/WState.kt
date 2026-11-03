@@ -64,7 +64,7 @@ object WidgetData {
     }
     fun hasDev(ctx: Context): Boolean = sp(ctx).contains("dev")
 
-    private fun start(m: MatchCard): Long = runCatching {
+    fun start(m: MatchCard): Long = runCatching {
         val d = LocalDate.parse(m.date.take(10))
         val t = m.time.takeIf { it.length >= 4 && it[0].isDigit() }?.let { java.time.LocalTime.parse(it.take(5)) } ?: java.time.LocalTime.NOON
         LocalDateTime.of(d, t).atZone(ATHENS).toInstant().toEpochMilli()
@@ -123,6 +123,9 @@ object WidgetData {
         val app = ctx.applicationContext
         scope.launch {
             runCatching { MatchWidget().updateAll(app) }
+            runCatching { MatchesWidget().updateAll(app) }
+            runCatching { StandingsWidget().updateAll(app) }
+            runCatching { NewsWidget().updateAll(app) }
             runCatching { TileService.requestListeningState(app, ComponentName(app, AekTileService::class.java)) }
         }
     }
