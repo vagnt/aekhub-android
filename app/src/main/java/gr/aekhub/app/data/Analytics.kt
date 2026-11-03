@@ -55,7 +55,10 @@ object Analytics {
     fun screen(ctx: Context, name: String, kind: Int, oid: Long = 0L) {
         if (!enabled) return
         val key = "$kind:$oid:$name"
-        synchronized(seen) { val t = seen[key]; if (t != null && System.currentTimeMillis() - t < 20_000) return; seen[key] = System.currentTimeMillis() } // όχι διπλή καταγραφή σε περιστροφή/επιστροφή
+        // Όπως στο site, όπου μετράει μόνο το άνοιγμα μιας σελίδας: εδώ οι καρτέλες (Αρχική, Αγώνες, Βαθμολογίες, Εγώ)
+        // ανοίγουν ξανά και ξανά καθώς πηγαινοέρχεσαι, άρα μετράνε μία φορά ανά 30′· άρθρα/αγώνες ανά 5′, κατηγορίες ανά 10′.
+        val win = when (kind) { 1, 4 -> 5 * 60_000L; 3 -> 10 * 60_000L; else -> 30 * 60_000L }
+        synchronized(seen) { val t = seen[key]; if (t != null && System.currentTimeMillis() - t < win) return; seen[key] = System.currentTimeMillis() }
         fb(ctx)?.logEvent(com.google.firebase.analytics.FirebaseAnalytics.Event.SCREEN_VIEW, android.os.Bundle().apply {
             putString(com.google.firebase.analytics.FirebaseAnalytics.Param.SCREEN_NAME, name)
             putString(com.google.firebase.analytics.FirebaseAnalytics.Param.SCREEN_CLASS, "MainActivity")
@@ -71,7 +74,7 @@ object Analytics {
     }
 
     private fun siteHit(ctx: Context, kind: Int, oid: Long) {
-        if (!Api.isReady()) return
+        if (!Api.isReady() || gr.aekhub.app.BuildConfig.DEV) return // το dev APK δεν μετράει στα στατιστικά του site
         val tablet = ctx.resources.configuration.smallestScreenWidthDp >= 600
         val body = """{"k":$kind,"o":$oid,"s":14,"v":${if (tablet) 2 else 1},"d":"${Device.id(ctx)}"}"""
         val req = Request.Builder().url(BuildConfig.SITE + "/wp-json/aekhub/v1/hit").post(body.toRequestBody("text/plain".toMediaType())).build()
