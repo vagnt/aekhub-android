@@ -188,10 +188,23 @@ fun ArticleScreen(id: Long, back: () -> Unit, openPost: (Long) -> Unit = {}) {
         }
         }
 
-        // Πρόοδος ανάγνωσης (χρυσή γραμμή πάνω-πάνω)
-        val prog by androidx.compose.runtime.remember { androidx.compose.runtime.derivedStateOf {
-            val total = list.layoutInfo.totalItemsCount.coerceAtLeast(1)
-            ((list.firstVisibleItemIndex + 1).toFloat() / total).coerceIn(0f, 1f)
+        // Πρόοδος ανάγνωσης (χρυσή γραμμή πάνω-πάνω): μόνο το ΚΕΙΜΕΝΟ του άρθρου (εικόνα, τίτλος, παράγραφοι),
+        // σε pixels — όχι σε πλήθος στοιχείων. Πριν μετρούσε και τα «Διάβασε επίσης»/social, άρα στο τέλος του
+        // κειμένου έδειχνε ~60% και πηδούσε ανά παράγραφο. 100% = ο πάτος της τελευταίας παραγράφου στην οθόνη.
+        val sizes = androidx.compose.runtime.remember(p.id, blocks.size) { HashMap<Int, Int>() }
+        val prog by androidx.compose.runtime.remember(p.id, blocks.size) { androidx.compose.runtime.derivedStateOf {
+            val info = list.layoutInfo
+            info.visibleItemsInfo.forEach { sizes[it.index] = it.size }
+            val last = 1 + blocks.size // hero = 0, head = 1, παράγραφοι 2…last
+            val gap = info.mainAxisItemSpacing
+            val avg = if (sizes.isEmpty()) 1 else sizes.values.average().toInt().coerceAtLeast(1)
+            fun sz(i: Int) = (sizes[i] ?: avg) + gap
+            val first = list.firstVisibleItemIndex
+            if (first > last) return@derivedStateOf 1f
+            val total = (0..last).sumOf { sz(it) }
+            val view = (info.viewportEndOffset - info.viewportStartOffset - info.afterContentPadding).coerceAtLeast(1)
+            val scrolled = (0 until first).sumOf { sz(it) } + list.firstVisibleItemScrollOffset
+            (scrolled.toFloat() / (total - view).coerceAtLeast(1)).coerceIn(0f, 1f)
         } }
         Box(Modifier.fillMaxWidth().height(3.dp).background(C.Line)) {
             Box(Modifier.fillMaxWidth(prog).fillMaxHeight().background(C.Gold))
