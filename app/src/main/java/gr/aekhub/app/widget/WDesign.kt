@@ -132,8 +132,7 @@ internal fun countdown(ms: Long): String {
 }
 
 /** Μικρό όνομα ομάδας για στενά widgets («Falco Szombathely» → «Falco»). */
-internal fun shortName(n0: String, max: Int): String {
-    val n = n0.upperGr() // ΡΕΑΛ ΜΑΔΡΙΤΗΣ: κεφαλαία χωρίς τόνους, όπως στο site
+internal fun shortName(n: String, max: Int): String {
     if (n.length <= max) return n
     val first = n.split(' ').firstOrNull().orEmpty()
     return if (first.length in 3..max) first else n.take(max - 1) + "…"

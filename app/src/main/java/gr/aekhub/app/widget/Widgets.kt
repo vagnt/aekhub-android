@@ -257,7 +257,7 @@ private fun TeamLine(name: String, logo: Bitmap?, score: String, lead: Boolean) 
     Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Crest(logo, 17)
         Spacer(GlanceModifier.width(7.dp))
-        Text(name.upperGr(), GlanceModifier.defaultWeight(), style = ts(13f, W.TEXT, FontWeight.Bold, cond = true), maxLines = 1)
+        Text(name, GlanceModifier.defaultWeight(), style = ts(13f, W.TEXT, FontWeight.Bold, cond = true), maxLines = 1)
         if (score.isNotBlank()) Text(score, style = ts(14f, if (lead) W.GOLD else W.TEXT, FontWeight.Bold, cond = true))
     }
 }
@@ -317,7 +317,7 @@ class StandingsWidget : GlanceAppWidget() {
                             Text(r.pos.toString(), GlanceModifier.width(20.dp), style = ts(11.5f, if (me) W.GOLD else W.MUTED, FontWeight.Bold))
                             Crest(l[r.logo], 16)
                             Spacer(GlanceModifier.width(7.dp))
-                            Text(r.name.upperGr(), GlanceModifier.defaultWeight(), style = ts(13f, if (me) W.GOLD else W.TEXT, FontWeight.Bold, cond = true), maxLines = 1)
+                            Text(r.name, GlanceModifier.defaultWeight(), style = ts(13f, if (me) W.GOLD else W.TEXT, FontWeight.Bold, cond = true), maxLines = 1)
                             if (wide) {
                                 Text(r.played, GlanceModifier.width(26.dp), style = ts(11.5f, W.TEXT2, FontWeight.Medium, TextAlign.Center))
                                 Text((if (gd > 0) "+" else "") + gd, GlanceModifier.width(32.dp), style = ts(11.5f, if (gd > 0) W.GOLD else W.TEXT2, FontWeight.Medium, TextAlign.Center))
