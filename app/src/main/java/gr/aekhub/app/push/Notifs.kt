@@ -98,7 +98,7 @@ object Notifs {
         val id = d["match"]?.toLongOrNull() ?: 0L
 
         // Widget και πλακίδιο: σκορ/λεπτό από την ίδια την ειδοποίηση, χωρίς δίκτυο
-        if (id > 0 && kind in setOf("goals", "startend", "live", "cards", "reminder")) runCatching { gr.aekhub.app.widget.WidgetData.fromPush(ctx, d) }
+        if (id > 0 && kind in setOf("goals", "goalupd", "startend", "live", "cards", "reminder")) runCatching { gr.aekhub.app.widget.WidgetData.fromPush(ctx, d) }
         if (kind == "lineup") return // ενδεκάδες/πεντάδες: καμία ειδοποίηση (και αν έρθει από παλιότερο server)
         if (kind == "breaking") {
             val cat = d["cat"].orEmpty()
@@ -110,6 +110,8 @@ object Notifs {
         val sport = d["sport"] ?: "football"
         val explicit = id > 0 && id.toString() in s.matchAlerts
         val aekScored = d["aekScored"] == "1" || d["aek"].isNullOrEmpty()
+        // «goalupd» = ήρθε ο σκόρερ του γκολ που ειδοποιήσαμε πριν λίγο: η ίδια ειδοποίηση αλλάζει κείμενο, χωρίς ήχο
+        if (kind == "goalupd") { if (explicit || s.wants(sport, "goals")) goalUpdate(ctx, d); return }
         val allowed = explicit || s.wants(sport, kind) || (kind == "live" && s.nLive && sport in s.sports) // γκολ ΑΕΚ και αντιπάλου: ένα είδος «goals»· «live» = αθόρυβη ενημέρωση της ζωντανής
         if (!allowed) return
 
@@ -388,6 +390,26 @@ object Notifs {
             .setTimeoutAfter(20 * 60_000L)
         if (!spoiler) b.setLargeIcon(crest(ctx, logo) ?: hubLogo(ctx))
         if (d["hl"] == "1" && d["ev"] == "goal") b.addAction(0, "Δες το γκολ", openMatch(ctx, id, 4))
+        b.addAction(0, "Match Center", openMatch(ctx, id, 2))
+        post(ctx, tag(id), SLOT_GOAL, b)
+    }
+
+    /** Ο σκόρερ ήρθε μετά: ενημερώνει την ειδοποίηση του γκολ ΜΟΝΟ αν φαίνεται ακόμα (αν την έσβησε ο χρήστης, δεν ξαναβγαίνει) — αθόρυβα. */
+    private fun goalUpdate(ctx: Context, d: Map<String, String>) {
+        val id = d["match"]?.toLongOrNull() ?: return
+        val nm = ctx.getSystemService(android.app.NotificationManager::class.java) ?: return
+        val shown = runCatching { nm.activeNotifications.any { it.tag == tag(id) && it.id == SLOT_GOAL } }.getOrDefault(false)
+        if (!shown) return
+        val side = d["side"]
+        val logo = if (side == "away") d["alogo"] else if (side == "home") d["hlogo"] else aekLogo(d)
+        val b = base(ctx, CH_GOAL, d["title"].orEmpty(), d["body"].orEmpty())
+            .setSubText(d["comp"])
+            .setContentIntent(openMatch(ctx, id, 3))
+            .setCategory(NotificationCompat.CATEGORY_EVENT)
+            .setOnlyAlertOnce(true).setSilent(true)
+            .setTimeoutAfter(20 * 60_000L)
+            .setLargeIcon(crest(ctx, logo) ?: hubLogo(ctx))
+        if (d["hl"] == "1") b.addAction(0, "Δες το γκολ", openMatch(ctx, id, 4))
         b.addAction(0, "Match Center", openMatch(ctx, id, 2))
         post(ctx, tag(id), SLOT_GOAL, b)
     }
