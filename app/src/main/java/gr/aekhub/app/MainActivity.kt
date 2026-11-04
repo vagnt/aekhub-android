@@ -1,5 +1,6 @@
 package gr.aekhub.app
 
+import androidx.lifecycle.repeatOnLifecycle
 import android.Manifest
 import android.content.Intent
 import android.os.Build
@@ -212,6 +213,15 @@ private fun AppRoot(deep: MutableStateFlow<Deep?>) {
             r.startsWith("match/") -> gr.aekhub.app.data.Analytics.screen(ctx, "Αγώνας", 4, id)
             r.startsWith("cat/") -> gr.aekhub.app.data.Analytics.screen(ctx, "Κατηγορία", 3)
             else -> gr.aekhub.app.data.Analytics.screen(ctx, when (r) { "matches" -> "Αγώνες"; "standings" -> "Βαθμολογίες"; "me" -> "Εγώ"; "search" -> "Αναζήτηση"; "feed" -> "Ροή ειδήσεων"; else -> r.substringBefore('/') }, 6)
+        }
+    }
+
+    // 🔴 Live στα στατιστικά: παλμός κάθε 60″ όσο η εφαρμογή φαίνεται· όταν κλείσει/πάει στο παρασκήνιο → «έφυγε»
+    val life = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    LaunchedEffect(life) {
+        life.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+            try { kotlinx.coroutines.delay(5_000); while (true) { gr.aekhub.app.data.Analytics.ping(ctx); kotlinx.coroutines.delay(60_000) } }
+            finally { gr.aekhub.app.data.Analytics.ping(ctx, leave = true) }
         }
     }
 

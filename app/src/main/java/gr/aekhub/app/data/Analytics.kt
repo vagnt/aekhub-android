@@ -53,6 +53,7 @@ object Analytics {
 
     /** Άνοιξε οθόνη: screen_view στο GA + hit στο site. */
     fun screen(ctx: Context, name: String, kind: Int, oid: Long = 0L) {
+        curKind = kind; curOid = oid
         if (!enabled) return
         val key = "$kind:$oid:$name"
         // Όπως στο site, όπου μετράει μόνο το άνοιγμα μιας σελίδας: εδώ οι καρτέλες (Αρχική, Αγώνες, Βαθμολογίες, Εγώ)
@@ -71,6 +72,23 @@ object Analytics {
     fun event(ctx: Context, name: String, vararg params: Pair<String, Any>) {
         if (!enabled) return
         fb(ctx)?.logEvent(name, android.os.Bundle().apply { params.forEach { (k, v) -> when (v) { is Long -> putLong(k, v); is Int -> putLong(k, v.toLong()); else -> putString(k, v.toString().take(100)) } } })
+    }
+
+    @Volatile private var curKind = 2
+    @Volatile private var curOid = 0L
+
+    /**
+     * 🔴 «Live τώρα» στα στατιστικά του site: όσο η εφαρμογή είναι ανοιχτή, ένας μικρός παλμός κάθε 60″ με την οθόνη που βλέπει
+     * (όπως κάνει και το site)· όταν βγει από την εφαρμογή (leave) φεύγει αμέσως από το «μέσα τώρα».
+     */
+    fun ping(ctx: Context, leave: Boolean = false) {
+        if (!enabled || !Api.isReady() || gr.aekhub.app.BuildConfig.DEV) return
+        val body = "{\"k\":$curKind,\"o\":$curOid,\"d\":\"${Device.id(ctx)}\"" + (if (leave) ",\"x\":1}" else "}")
+        val req = Request.Builder().url(BuildConfig.SITE + "/wp-json/aekhub-an/v1/ping").post(body.toRequestBody("text/plain".toMediaType())).build()
+        Api.http.newCall(req).enqueue(object : okhttp3.Callback {
+            override fun onFailure(call: okhttp3.Call, e: IOException) {}
+            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) { response.close() }
+        })
     }
 
     private fun siteHit(ctx: Context, kind: Int, oid: Long) {
