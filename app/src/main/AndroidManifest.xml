@@ -29,6 +29,9 @@
         </activity>
 
         <!-- Widget «ΑΕΚ» στην αρχική οθόνη -->
+        <activity android:name=".widget.MatchWidgetConfigActivity" android:exported="true" android:theme="@android:style/Theme.Material.NoActionBar" android:excludeFromRecents="true" android:taskAffinity="">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" /></intent-filter>
+        </activity>
         <receiver android:name=".widget.MatchWidgetReceiver" android:exported="true" android:label="@string/widget_name">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/aek_match_widget" />

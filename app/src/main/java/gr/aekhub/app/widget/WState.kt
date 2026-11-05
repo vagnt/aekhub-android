@@ -89,6 +89,27 @@ object WidgetData {
         pick?.let { from(it) }?.also { save(ctx, it) }
     }
 
+    /* ── 📌 Widget «καρφιτσωμένο» σε συγκεκριμένο αγώνα (ο χρήστης τον διαλέγει στο στήσιμο ή με «Ρύθμιση») ── */
+    fun pin(ctx: Context, widgetId: Int): Long = sp(ctx).getLong("pin_$widgetId", 0L)
+    fun setPin(ctx: Context, widgetId: Int, matchId: Long) {
+        val e = sp(ctx).edit(); if (matchId > 0) e.putLong("pin_$widgetId", matchId) else e.remove("pin_$widgetId"); e.remove("pinst_$widgetId"); e.apply()
+    }
+
+    /** Ο αγώνας που διάλεξε ο χρήστης· αφού τελειώσει (και περάσουν 12 ώρες) το widget γυρίζει μόνο του στο «Αυτόματα». */
+    suspend fun pinned(ctx: Context, widgetId: Int, matchId: Long): WState? = withContext(Dispatchers.IO) {
+        Api.init(ctx.applicationContext)
+        val key = "pinst_$widgetId"
+        val today = LocalDate.now(ATHENS)
+        val got = runCatching { Api.matches(today.minusDays(2).toString(), today.plusDays(90).toString(), null, fresh = true).items.firstOrNull { it.id == matchId } }.getOrNull()
+        // Από ειδοποίηση: πιο φρέσκο σκορ/λεπτό για τον ίδιο αγώνα
+        val push = read(ctx)?.takeIf { it.id == matchId && System.currentTimeMillis() - it.updated < 120_000 }
+        val st = push ?: got?.let { from(it) }
+            ?: sp(ctx).getString(key, null)?.let { runCatching { Api.json.decodeFromString(WState.serializer(), it) }.getOrNull() }
+        if (st == null || (st.finished && System.currentTimeMillis() - st.startMs > 15 * 3_600_000L)) { setPin(ctx, widgetId, 0L); return@withContext null }
+        sp(ctx).edit().putString(key, Api.json.encodeToString(WState.serializer(), st)).apply()
+        st
+    }
+
     /** Για το widget: dev → δίκτυο → αποθηκευμένο. */
     suspend fun current(ctx: Context): WState? {
         if (hasDev(ctx)) return read(ctx)
