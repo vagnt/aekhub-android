@@ -5,6 +5,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -24,7 +26,14 @@ data class Settings(
     val nBreaking: Boolean = true,
     /** Έκτακτα μόνο από αυτές τις κατηγορίες (ονόματα)· άδειο = όλες. */
     val newsCats: Set<String> = emptySet(),
+    /** Ήσυχες ώρες κάθε μέρα (από–έως σε λεπτά της ημέρας, π.χ. 01:00 = 60). */
     val nQuiet: Boolean = false,
+    val quietFrom: Int = 60,
+    val quietTo: Int = 480,
+    /** «Σίγαση για λίγο» (1 ώρα, 2 ώρες, ως το πρωί): ως πότε (epoch ms)· 0 = όχι. */
+    val quietUntil: Long = 0L,
+    /** Στις ήσυχες ώρες περνάνε τα γκολ της ΑΕΚ. */
+    val quietAek: Boolean = true,
     /** Ζωντανός αγώνας στην οθόνη κλειδώματος (Live Update). Προεπιλογή: ανοιχτό από Android 16, κλειστό πριν. */
     val nLive: Boolean = android.os.Build.VERSION.SDK_INT >= 36,
     /** Η ζωντανή ειδοποίηση ως «πίνακας σκορ» (σήμα–σκορ–σήμα). Κλειστό = το στυλ Live Update του Android 16. */
@@ -68,6 +77,15 @@ fun defaultKinds(goals: Boolean = true, startEnd: Boolean = true, lineup: Boolea
 fun Settings.wants(sport: String, kind: String) = nAll && sport in sports &&
     ("$sport:$kind" in kinds || (kind == Kinds.GOALS && "$sport:${Kinds.OPP}" in kinds)) // παλιές ρυθμίσεις με «opp» μετράνε ως «Γκολ»
 
+/** Είναι τώρα ήσυχες ώρες; (προσωρινή σίγαση ή το καθημερινό διάστημα, και πέρα από τα μεσάνυχτα, π.χ. 23:00–07:00) */
+fun Settings.quietNow(now: Long = System.currentTimeMillis()): Boolean {
+    if (quietUntil > now) return true
+    if (!nQuiet || quietFrom == quietTo) return false
+    val t = java.time.Instant.ofEpochMilli(now).atZone(java.time.ZoneId.systemDefault()).toLocalTime()
+    val m = t.hour * 60 + t.minute
+    return if (quietFrom < quietTo) m in quietFrom until quietTo else m >= quietFrom || m < quietTo
+}
+
 /** Θα έρθουν ειδοποιήσεις για αυτόν τον αγώνα; (ακολουθείς το άθλημα ή το πάτησες, και δεν τον έχεις σιγάσει) */
 fun Settings.alertOn(id: Long, sport: String, aek: Boolean): Boolean {
     if (!nAll) return false
@@ -87,6 +105,10 @@ class Prefs(private val ctx: Context) {
         val breaking = booleanPreferencesKey("n_breaking")
         val newsCats = stringSetPreferencesKey("news_cats")
         val quiet = booleanPreferencesKey("n_quiet")
+        val quietFrom = intPreferencesKey("quiet_from")
+        val quietTo = intPreferencesKey("quiet_to")
+        val quietUntil = longPreferencesKey("quiet_until")
+        val quietAek = booleanPreferencesKey("quiet_aek")
         val live = booleanPreferencesKey("n_live")
         val liveBoard = booleanPreferencesKey("n_live_board")
         val all = booleanPreferencesKey("n_all")
@@ -112,6 +134,10 @@ class Prefs(private val ctx: Context) {
             nBreaking = p[K.breaking] ?: d.nBreaking,
             newsCats = p[K.newsCats] ?: d.newsCats,
             nQuiet = p[K.quiet] ?: d.nQuiet,
+            quietFrom = p[K.quietFrom] ?: d.quietFrom,
+            quietTo = p[K.quietTo] ?: d.quietTo,
+            quietUntil = p[K.quietUntil] ?: d.quietUntil,
+            quietAek = p[K.quietAek] ?: d.quietAek,
             nLive = p[K.live] ?: d.nLive,
             nLiveBoard = p[K.liveBoard] ?: d.nLiveBoard,
             nAll = p[K.all] ?: d.nAll,
@@ -164,6 +190,12 @@ class Prefs(private val ctx: Context) {
         }
         p[key] = v
     }
+
+    /** Ήσυχες ώρες κάθε μέρα: από–έως (λεπτά της ημέρας). */
+    suspend fun setQuietHours(from: Int, to: Int) = ctx.store.edit { it[K.quietFrom] = from.mod(1440); it[K.quietTo] = to.mod(1440); it[K.quiet] = true }
+    /** Σίγαση ως μια ώρα (0 = ακύρωση). */
+    suspend fun setQuietUntil(until: Long) = ctx.store.edit { it[K.quietUntil] = until }
+    suspend fun setQuietAek(v: Boolean) = ctx.store.edit { it[K.quietAek] = v }
 
     /** Ένα είδος ειδοποίησης σε ένα άθλημα. */
     suspend fun setKind(sport: String, kind: String, on: Boolean) = ctx.store.edit { p ->

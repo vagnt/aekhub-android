@@ -94,18 +94,20 @@ private fun sportTitle(s: Set<String>?): String = when {
 object WidgetList {
     private fun sp(ctx: Context) = ctx.applicationContext.getSharedPreferences("widget", Context.MODE_PRIVATE)
     private val ser = ListSerializer(MatchCard.serializer())
+    /** Όσοι αγώνες χωράνε στη λίστα με κύλιση (επόμενες 30 μέρες). */
+    const val MAX = 20
 
     suspend fun matches(ctx: Context, sports: Set<String>?): List<MatchCard> = withContext(Dispatchers.IO) {
         Api.init(ctx.applicationContext)
         val key = "list_" + (sports?.firstOrNull() ?: "all")
         val today = LocalDate.now(W.ATHENS)
         val fresh = runCatching {
-            val all = Api.matches(today.toString(), today.plusDays(21).toString(), null, fresh = true).items
+            val all = Api.matches(today.toString(), today.plusDays(30).toString(), null, fresh = true).items
                 .filter { it.aek.isNotEmpty() && !it.postponed && (sports == null || it.sport in sports) }
             all.filter { it.live } + all.filter { it.upcoming }.sortedBy { WidgetData.start(it) } +
                 all.filter { it.finished && it.date.take(10) == today.toString() }
         }.getOrNull()
-        if (fresh != null) { sp(ctx).edit().putString(key, Api.json.encodeToString(ser, fresh.take(8))).apply(); fresh.take(8) }
+        if (fresh != null) { sp(ctx).edit().putString(key, Api.json.encodeToString(ser, fresh.take(MAX))).apply(); fresh.take(MAX) }
         else sp(ctx).getString(key, null)?.let { runCatching { Api.json.decodeFromString(ser, it) }.getOrNull() }.orEmpty()
     }
 }
@@ -169,7 +171,10 @@ class MatchWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         W.FS = context.resources.configuration.fontScale
-        val st = WidgetData.current(context)
+        val wid = runCatching { GlanceAppWidgetManager(context).getAppWidgetId(id) }.getOrDefault(0)
+        val pin = WidgetData.pin(context, wid)
+        // 📌 ο αγώνας που διάλεξε ο χρήστης, αλλιώς αυτόματα: live → επόμενος
+        val st = (if (pin > 0 && !WidgetData.hasDev(context)) WidgetData.pinned(context, wid, pin) else null) ?: WidgetData.current(context)
         val l = st?.let { logos(context, listOf(it.homeLogo, it.awayLogo), 200) }.orEmpty()
         provideContent {
             val m = st?.mv()
@@ -201,20 +206,23 @@ class MatchesWidget : GlanceAppWidget() {
         W.FS = context.resources.configuration.fontScale
         val sports = sportsOf(providerName(context, id))
         val list = WidgetList.matches(context, sports)
-        val l = logos(context, list.take(6).flatMap { listOf(it.homeLogo, it.awayLogo) }, 120)
+        val l = logos(context, list.flatMap { listOf(it.homeLogo, it.awayLogo) }, 96)
         provideContent {
             val size = LocalSize.current
-            val cap = ((size.height.value - 34f) / 50f).toInt().coerceIn(1, 6)
-            val rows = list.take(cap).map { it.mv() }
+            val rows = list.map { it.mv() }
             Frame(openApp(context, tab = "matches"), live = rows.any { it.live }, pad = 10) {
-                Head("ΑΓΩΝΕΣ ΑΕΚ", sportTitle(sports), small = size.width.value < 230f)
+                Head("ΑΓΩΝΕΣ ΑΕΚ", sportTitle(sports), right = if (rows.size > 1) rows.size.toString() else "", small = size.width.value < 230f)
                 Spacer(GlanceModifier.height(7.dp))
                 when {
                     rows.isEmpty() -> Empty("Δεν υπάρχουν αγώνες τις επόμενες μέρες")
                     rows.size == 1 && size.height.value >= 140f -> MatchBody(rows[0], l[rows[0].hlogo], l[rows[0].alogo])
-                    else -> rows.forEachIndexed { i, m ->
-                        if (i > 0) Spacer(GlanceModifier.height(5.dp))
-                        MatchRow(context, m, l, size.width.value >= 230f)
+                    // Όλοι οι αγώνες (έως 20, επόμενες 30 μέρες) σε λίστα με κύλιση — όπως στις μεγάλες αθλητικές εφαρμογές
+                    else -> androidx.glance.appwidget.lazy.LazyColumn(GlanceModifier.fillMaxWidth().defaultWeight()) {
+                        items(rows.size, { rows[it].id }) { i ->
+                            Column(GlanceModifier.fillMaxWidth().padding(bottom = 5.dp)) {
+                                MatchRow(context, rows[i], l, size.width.value >= 230f, GlanceModifier.height(52.dp))
+                            }
+                        }
                     }
                 }
             }
@@ -224,8 +232,8 @@ class MatchesWidget : GlanceAppWidget() {
 
 /** Μια γραμμή αγώνα: ημέρα | δύο ομάδες η μία κάτω από την άλλη (σήμα, όνομα, σκορ) | ώρα. */
 @Composable
-private fun ColumnScope.MatchRow(ctx: Context, m: MV, l: Map<String, Bitmap?>, wide: Boolean) {
-    Row(GlanceModifier.fillMaxWidth().defaultWeight().background(cp(W.CARD)).cornerRadius(14.dp).padding(horizontal = 10.dp, vertical = 4.dp)
+private fun MatchRow(ctx: Context, m: MV, l: Map<String, Bitmap?>, wide: Boolean, size: GlanceModifier) {
+    Row(GlanceModifier.fillMaxWidth().then(size).background(cp(W.CARD)).cornerRadius(14.dp).padding(horizontal = 10.dp, vertical = 4.dp)
         .clickable(openApp(ctx, match = m.id)), verticalAlignment = Alignment.CenterVertically) {
         Column(GlanceModifier.width(38.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             when {

@@ -23,6 +23,7 @@ import gr.aekhub.app.R
 import gr.aekhub.app.data.Kinds
 import gr.aekhub.app.data.Settings
 import gr.aekhub.app.data.wants
+import gr.aekhub.app.data.quietNow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
@@ -116,9 +117,8 @@ object Notifs {
         if (!allowed) return
 
         // Ήσυχες ώρες 01:00–08:00: περνάνε μόνο τα γκολ της ΑΕΚ (και η αθόρυβη ζωντανή)
-        if (s.nQuiet && kind != "live" && !(kind == "goals" && aekScored && d["ev"] == "goal")) {
-            if (LocalTime.now(ZoneId.of("Europe/Athens")).hour in 1..7) return
-        }
+        // Ήσυχες ώρες (καθημερινό διάστημα ή «σίγαση για λίγο»): περνάνε μόνο η αθόρυβη ζωντανή και — αν το θέλει — τα γκολ της ΑΕΚ
+        if (kind != "live" && s.quietNow() && !(s.quietAek && kind == "goals" && aekScored && d["ev"] == "goal")) return
 
         val sp = false // «Χωρίς spoilers» καταργήθηκε (0.14.0): οι ειδοποιήσεις έχουν πάντα σκορ
         val ev = d["ev"] ?: ""

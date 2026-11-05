@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.size
 import gr.aekhub.app.BuildConfig
 import gr.aekhub.app.LocalPrefs
+import gr.aekhub.app.data.quietNow
 import gr.aekhub.app.data.Api
 import gr.aekhub.app.data.AppConfig
 import gr.aekhub.app.data.Settings as AppSettings
@@ -164,7 +165,7 @@ fun MeScreen(openPost: (Long) -> Unit) {
                         Toggle(Icons.Filled.SportsScore, "Σαν πίνακας σκορ", "Σήμα – σκορ – σήμα, όπως στο Match Center. Κλειστό: το στυλ του Android 16 (μπάρα αγώνα και, σε Pixel, σκορ στη γραμμή πάνω).", null, s.nLiveBoard) { scope.launch { prefs.setFlag("liveBoard", it) } }
                     }
                     HorizontalDivider(Modifier.padding(start = 68.dp, end = 16.dp), thickness = 1.dp, color = C.Line)
-                    Toggle(Icons.Filled.Bedtime, "Ήσυχες ώρες", "Από 01:00 έως 08:00 το κινητό δεν χτυπάει. Εξαίρεση: τα γκολ της ΑΕΚ.", null, s.nQuiet) { scope.launch { prefs.setFlag("quiet", it) } }
+                    QuietHours(s, prefs)
                     HorizontalDivider(Modifier.padding(start = 68.dp, end = 16.dp), thickness = 1.dp, color = C.Line)
                     Toggle(Icons.Filled.Insights, "Ανώνυμα στατιστικά", "Βοηθούν να βελτιώνουμε το AEK Hub (ποια άρθρα και αγώνες διαβάζονται). Χωρίς προσωπικά στοιχεία, μόνο αν έχεις δώσει συναίνεση στη φόρμα απορρήτου — και μπορείς να τα κλείσεις.", null, s.nStats) { scope.launch { prefs.setFlag("stats", it) } }
                     Row(
@@ -331,5 +332,82 @@ private fun SportCard(key: String, name: String, s: AppSettings, toggle: () -> U
                 }
             }
         }
+    }
+}
+
+
+/**
+ * 🌙 Ήσυχες ώρες: σίγαση για λίγο (1 ώρα / 2 ώρες / ως το πρωί) ή κάθε μέρα σε δικό σου διάστημα (π.χ. 23:00–07:30).
+ * Στις ήσυχες ώρες δεν χτυπάει τίποτα — προαιρετικά περνάνε τα γκολ της ΑΕΚ.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun QuietHours(s: gr.aekhub.app.data.Settings, prefs: gr.aekhub.app.data.Prefs) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(s.quietUntil) { while (true) { now = System.currentTimeMillis(); kotlinx.coroutines.delay(30_000) } }
+    val paused = s.quietUntil > now
+    val active = s.quietNow(now)
+    fun hm(m: Int) = "%02d:%02d".format(m / 60, m % 60)
+    fun at(ms: Long) = java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneId.systemDefault()).toLocalTime().let { "%02d:%02d".format(it.hour, it.minute) }
+    fun pick(start: Int, done: (Int) -> Unit) = android.app.TimePickerDialog(ctx, { _, h, m -> done(h * 60 + m) }, start / 60, start % 60, true).show()
+    /** Επόμενη φορά που θα είναι η ώρα «τέλους» του καθημερινού διαστήματος (για το «ως το πρωί»). */
+    fun nextMorning(): Long {
+        val z = java.time.ZoneId.systemDefault(); val n = java.time.ZonedDateTime.now(z)
+        var t = n.toLocalDate().atTime(s.quietTo / 60, s.quietTo % 60).atZone(z)
+        if (!t.isAfter(n)) t = t.plusDays(1)
+        return t.toInstant().toEpochMilli()
+    }
+
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            IconBox(Icons.Filled.Bedtime, active || s.nQuiet)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Ήσυχες ώρες", style = body(15, FontWeight.ExtraBold, if (active || s.nQuiet) C.Text else C.Text2))
+                Text(
+                    when {
+                        paused -> "🔕 Σίγαση ως τις ${at(s.quietUntil)}."
+                        active -> "🔕 Τώρα είναι ήσυχες ώρες (ως τις ${hm(s.quietTo)})."
+                        s.nQuiet -> "Κάθε μέρα ${hm(s.quietFrom)}–${hm(s.quietTo)} το κινητό δεν χτυπάει."
+                        else -> "Κλείσε τις ειδοποιήσεις για λίγο ή για συγκεκριμένες ώρες κάθε μέρα."
+                    } + if (s.quietAek) " Εξαίρεση: τα γκολ της ΑΕΚ." else "",
+                    style = body(12, color = if (active) C.Gold else C.Muted).copy(lineHeight = 17.sp),
+                )
+            }
+        }
+        // Σίγαση για λίγο
+        FlowRow(Modifier.padding(start = 52.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (paused) NewsChip("✕ Τέλος σίγασης", true) { scope.launch { prefs.setQuietUntil(0L) } }
+            NewsChip("1 ώρα", false) { scope.launch { prefs.setQuietUntil(System.currentTimeMillis() + 3_600_000L) } }
+            NewsChip("2 ώρες", false) { scope.launch { prefs.setQuietUntil(System.currentTimeMillis() + 7_200_000L) } }
+            NewsChip("8 ώρες", false) { scope.launch { prefs.setQuietUntil(System.currentTimeMillis() + 8 * 3_600_000L) } }
+            NewsChip("Ως τις ${hm(s.quietTo)}", false) { scope.launch { prefs.setQuietUntil(nextMorning()) } }
+        }
+        // Κάθε μέρα, δικές σου ώρες
+        Row(Modifier.padding(start = 52.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Κάθε μέρα", Modifier.weight(1f), style = body(13, FontWeight.ExtraBold, if (s.nQuiet) C.Text else C.Text2))
+            Switch(s.nQuiet, { v -> scope.launch { prefs.setFlag("quiet", v) } }, colors = sw())
+        }
+        if (s.nQuiet) Row(Modifier.padding(start = 52.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TimeBox("Από", hm(s.quietFrom)) { pick(s.quietFrom) { v -> scope.launch { prefs.setQuietHours(v, s.quietTo) } } }
+            Text("–", style = body(16, FontWeight.ExtraBold, C.Muted))
+            TimeBox("Έως", hm(s.quietTo)) { pick(s.quietTo) { v -> scope.launch { prefs.setQuietHours(s.quietFrom, v) } } }
+        }
+        Row(Modifier.padding(start = 52.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Να περνάνε τα γκολ της ΑΕΚ", Modifier.weight(1f), style = body(13, FontWeight.ExtraBold, if (s.quietAek) C.Text else C.Text2))
+            Switch(s.quietAek, { v -> scope.launch { prefs.setQuietAek(v) } }, colors = sw())
+        }
+    }
+}
+
+@Composable
+private fun TimeBox(label: String, value: String, onClick: () -> Unit) {
+    Column(
+        Modifier.clip(RoundedCornerShape(12.dp)).background(C.Ink).border(1.dp, C.Line, RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(label.uppercase(), style = body(10, FontWeight.ExtraBold, C.Muted))
+        Text(value, style = body(18, FontWeight.ExtraBold, C.Gold))
     }
 }
