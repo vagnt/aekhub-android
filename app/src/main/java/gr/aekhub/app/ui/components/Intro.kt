@@ -77,6 +77,8 @@ fun IntroSplash(onDone: () -> Unit) {
     var view by remember { mutableStateOf<TextureView?>(null) }
     val long = remember { longSplash(ctx) }
     val beats = if (long) BEATS5 else BEATS3
+    // τα πρώτα κλάσματα του βίντεο είναι σχεδόν μαύρα → ξεκινά μόλις «ανάβει» ο δικέφαλος (όπως στο iPhone)
+    val startMs = if (long) 250 else 150
 
     // τέλος (ή πάτημα): σβήνει μαλακά πάνω στην αρχική
     LaunchedEffect(finishing) {
@@ -87,7 +89,7 @@ fun IntroSplash(onDone: () -> Unit) {
     // δονήσεις στις στιγμές του βίντεο (από τη θέση του player, όχι από χρονόμετρο)
     LaunchedEffect(player) {
         val p = player ?: return@LaunchedEffect
-        var i = 0
+        var i = beats.indexOfFirst { it.first > startMs }.let { if (it < 0) beats.size else it }
         while (i < beats.size && !finishing) {
             val pos = runCatching { p.currentPosition }.getOrDefault(0)
             while (i < beats.size && pos >= beats[i].first) {
@@ -127,7 +129,7 @@ fun IntroSplash(onDone: () -> Unit) {
                                 mp.setOnVideoSizeChangedListener { _, vw, vh -> cover(tv, vw, vh) }
                                 mp.setOnCompletionListener { finishing = true }
                                 mp.setOnErrorListener { _, _, _ -> finishing = true; true }
-                                mp.setOnPreparedListener { it.start(); player = it }
+                                mp.setOnPreparedListener { it.seekTo(startMs.toLong(), MediaPlayer.SEEK_CLOSEST); it.start(); player = it }
                                 mp.prepareAsync()
                             }.onFailure { finishing = true; runCatching { mp.release() } }
                         }
