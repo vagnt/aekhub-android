@@ -114,6 +114,15 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
     LaunchedEffect(key) {
         while (true) { runCatching { takeMatches(Api.matches().items) }; delay(if (live.isNotEmpty()) 15_000 else 60_000) }
     }
+    // Πάτημα στο «Ειδήσεις» ενώ είσαι ήδη εκεί: πάνω-πάνω + φρέσκα
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    LaunchedEffect(Unit) {
+        gr.aekhub.app.TabTap.taps.collect { r ->
+            if (r != "home") return@collect
+            runCatching { listState.animateScrollToItem(0) }
+            refreshing = true; load(fresh = true); refreshing = false
+        }
+    }
 
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 6.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -132,7 +141,7 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
             when {
                 h == null && error -> ErrorBox { key++ }
                 h == null -> Loading()
-                else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = side, end = side, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                else -> LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(start = side, end = side, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     // ⏱ Αντίστροφη μέτρηση για τον επιλεγμένο αγώνα (ίδιος με την αρχική του site)
                     h.next?.takeIf { !it.live && !it.finished }?.let { nm -> item(key = "countdown") { gr.aekhub.app.ui.components.NextMatchCountdown(nm) { openMatch(nm.id) } } }
                     h.breaking?.takeIf { it.text.isNotBlank() }?.let { b ->

@@ -108,6 +108,7 @@ fun MatchesScreen(openMatch: (Long) -> Unit) {
     LaunchedEffect(sport) { gr.aekhub.app.live.Live.ping.collect { runCatching { list = Api.matches(start.toString(), days.last().toString(), sport.ifEmpty { null }, fresh = true).items } } }
     // Η λωρίδα ημερών ακολουθεί τη σελίδα
     LaunchedEffect(pager.currentPage) { strip.animateScrollToItem((pager.currentPage - 3).coerceAtLeast(0)) }
+    LaunchedEffect(Unit) { gr.aekhub.app.TabTap.taps.collect { if (it == "matches") runCatching { pager.animateScrollToPage(todayIdx) } } } // πάτημα στο «Αγώνες» → σήμερα
 
     val byDay = remember(list) { list?.groupBy { it.date } ?: emptyMap() }
     fun go(i: Int) = scope.launch { pager.animateScrollToPage(i.coerceIn(0, days.lastIndex)) }

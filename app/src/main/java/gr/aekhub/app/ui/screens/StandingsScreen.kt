@@ -70,6 +70,8 @@ fun StandingsScreen() {
     var sel by rememberSaveable { mutableStateOf(0L) }
     LaunchedEffect(key) { while (true) { error = false; try { list = Api.standings().items } catch (e: Exception) { if (list == null) error = true }; kotlinx.coroutines.delay(120_000) } }
     LaunchedEffect(Unit) { gr.aekhub.app.live.Live.ping.collect { runCatching { list = Api.standings(fresh = true).items } } }
+    val stState = androidx.compose.foundation.lazy.rememberLazyListState()
+    LaunchedEffect(Unit) { gr.aekhub.app.TabTap.taps.collect { if (it == "standings") runCatching { stState.animateScrollToItem(0) } } }
 
     Column(Modifier.fillMaxSize()) {
         ScreenTitle("Βαθμολογίες", Modifier.padding(start = 16.dp, top = 14.dp, bottom = 8.dp))
@@ -91,7 +93,7 @@ fun StandingsScreen() {
             isRefreshing = refreshing, modifier = Modifier.fillMaxSize(),
             onRefresh = { scope.launch { refreshing = true; runCatching { list = Api.standings(fresh = true).items }; refreshing = false } },
         ) {
-            LazyColumn(Modifier.fillMaxSize(), contentPadding = gr.aekhub.app.ui.sidePad(760.dp).let { sp -> PaddingValues(start = sp, end = sp, top = 8.dp, bottom = 28.dp) }) {
+            LazyColumn(Modifier.fillMaxSize(), state = stState, contentPadding = gr.aekhub.app.ui.sidePad(760.dp).let { sp -> PaddingValues(start = sp, end = sp, top = 8.dp, bottom = 28.dp) }) {
                 item(key = "pb") { gr.aekhub.app.ads.PresentedBy("standings", Modifier.padding(bottom = 10.dp)) }
                 item(key = "t" + t.id) { StandingTable(t) }
             }

@@ -197,6 +197,15 @@ class Prefs(private val ctx: Context) {
     suspend fun setQuietUntil(until: Long) = ctx.store.edit { it[K.quietUntil] = until }
     suspend fun setQuietAek(v: Boolean) = ctx.store.edit { it[K.quietAek] = v }
 
+    /** Υποδοχή νέου χρήστη (0.17.0): τμήματα + τι θέλει από τους αγώνες (ισχύει σε όλα τα αθλήματα) + ειδήσεις. */
+    suspend fun setOnboard(sports: Set<String>, kinds: Set<String>, news: Boolean, live: Boolean) = ctx.store.edit { p ->
+        p[K.sports] = sports
+        p[K.kinds] = Kinds.SPORTS.flatMap { sp -> kinds.map { "$sp:$it" } }.toSet()
+        p[K.breaking] = news
+        p[K.live] = live
+        p[K.all] = true
+    }
+
     /** Ένα είδος ειδοποίησης σε ένα άθλημα. */
     suspend fun setKind(sport: String, kind: String, on: Boolean) = ctx.store.edit { p ->
         val cur = p[K.kinds] ?: defaultKinds(p[K.goals] ?: true, p[K.startEnd] ?: true, p[K.lineup] ?: true, p[K.cards] ?: false)
