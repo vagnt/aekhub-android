@@ -33,19 +33,40 @@ import gr.aekhub.app.R
 import kotlinx.coroutines.delay
 
 /**
- * Άνοιγμα της εφαρμογής (0.17.1, ζήτησε ο χρήστης): το βίντεο του AEK Hub σε όλη την οθόνη
+ * Άνοιγμα της εφαρμογής (ζήτησε ο χρήστης): το βίντεο του AEK Hub σε όλη την οθόνη
  * (κινητό · tablet κάθετο · tablet οριζόντιο) με δονήσεις ΣΥΓΧΡΟΝΙΣΜΕΝΕΣ με το βίντεο:
- * «σκάει» ο κύκλος hub → γίνεται κουτί → πέφτουν a, e → το K (δυνατό) → το σύνθημα. Πάτημα = προσπέραση.
- * Ίδιες στιγμές με το iPhone (`IntroSplash.beats` στο aekhub-ios).
+ * κύκλος hub → κύμα → κουτί → a, e → το K (δυνατό) → το σύνθημα. Πάτημα = προσπέραση.
+ * 0.17.2: 5″ στο πρώτο άνοιγμα της μέρας και μετά από εγκατάσταση/ενημέρωση, 3″ (`*_s`) στα υπόλοιπα.
+ * Ίδιες στιγμές με το iPhone (`IntroSplash.beats5/beats3` στο aekhub-ios).
  */
-private val BEATS = listOf(
-    1920 to HapticFeedbackConstants.VIRTUAL_KEY,   // ο κύκλος hub «σκάει»
-    2320 to HapticFeedbackConstants.CLOCK_TICK,    // γίνεται το κουτί
-    2970 to HapticFeedbackConstants.KEYBOARD_TAP,  // πέφτει το a
-    3260 to HapticFeedbackConstants.KEYBOARD_TAP,  // το e
-    3540 to HapticFeedbackConstants.LONG_PRESS,    // το K (το πιο δυνατό)
-    4150 to HapticFeedbackConstants.CLOCK_TICK,    // «Όλη η ΑΕΚ, σε ένα σημείο!»
+private val BEATS5 = listOf(
+    650 to HapticFeedbackConstants.CLOCK_TICK,     // εμφανίζεται ο κύκλος hub
+    1100 to HapticFeedbackConstants.VIRTUAL_KEY,   // ο κύκλος «σκάει» (κύμα)
+    1500 to HapticFeedbackConstants.CLOCK_TICK,    // γίνεται το κουτί
+    2300 to HapticFeedbackConstants.KEYBOARD_TAP,  // πέφτει το a
+    2600 to HapticFeedbackConstants.KEYBOARD_TAP,  // το e
+    2900 to HapticFeedbackConstants.LONG_PRESS,    // το K (το πιο δυνατό)
+    3300 to HapticFeedbackConstants.CLOCK_TICK,    // «Όλη η ΑΕΚ, σε ένα σημείο!»
 )
+private val BEATS3 = listOf(
+    300 to HapticFeedbackConstants.CLOCK_TICK,
+    670 to HapticFeedbackConstants.VIRTUAL_KEY,
+    900 to HapticFeedbackConstants.CLOCK_TICK,
+    1400 to HapticFeedbackConstants.KEYBOARD_TAP,
+    1600 to HapticFeedbackConstants.KEYBOARD_TAP,
+    1800 to HapticFeedbackConstants.LONG_PRESS,
+    2100 to HapticFeedbackConstants.CLOCK_TICK,
+)
+
+/** Μεγάλο (5″) στο πρώτο άνοιγμα της μέρας ή μετά από εγκατάσταση/ενημέρωση· γράφει ότι παίχτηκε. */
+private fun longSplash(ctx: android.content.Context): Boolean = runCatching {
+    val sp = ctx.getSharedPreferences("splash", android.content.Context.MODE_PRIVATE)
+    val day = java.time.LocalDate.now().toString()
+    val upd = ctx.packageManager.getPackageInfo(ctx.packageName, 0).lastUpdateTime
+    val l = sp.getString("day", null) != day || sp.getLong("upd", 0L) != upd
+    sp.edit().putString("day", day).putLong("upd", upd).apply()
+    l
+}.getOrDefault(true)
 
 @Composable
 fun IntroSplash(onDone: () -> Unit) {
@@ -54,6 +75,8 @@ fun IntroSplash(onDone: () -> Unit) {
     var finishing by remember { mutableStateOf(false) }
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
     var view by remember { mutableStateOf<TextureView?>(null) }
+    val long = remember { longSplash(ctx) }
+    val beats = if (long) BEATS5 else BEATS3
 
     // τέλος (ή πάτημα): σβήνει μαλακά πάνω στην αρχική
     LaunchedEffect(finishing) {
@@ -65,10 +88,10 @@ fun IntroSplash(onDone: () -> Unit) {
     LaunchedEffect(player) {
         val p = player ?: return@LaunchedEffect
         var i = 0
-        while (i < BEATS.size && !finishing) {
+        while (i < beats.size && !finishing) {
             val pos = runCatching { p.currentPosition }.getOrDefault(0)
-            while (i < BEATS.size && pos >= BEATS[i].first) {
-                if (pos - BEATS[i].first < 250) view?.performHapticFeedback(BEATS[i].second)
+            while (i < beats.size && pos >= beats[i].first) {
+                if (pos - beats[i].first < 250) view?.performHapticFeedback(beats[i].second)
                 i++
             }
             delay(12)
@@ -83,7 +106,11 @@ fun IntroSplash(onDone: () -> Unit) {
             .clickable(remember { MutableInteractionSource() }, null) { finishing = true },
     ) {
         val tablet = minOf(maxWidth.value, maxHeight.value) >= 600f
-        val res = when { !tablet -> R.raw.splash_phone; maxWidth > maxHeight -> R.raw.splash_tab_l; else -> R.raw.splash_tab_p }
+        val res = when {
+            !tablet -> if (long) R.raw.splash_phone else R.raw.splash_phone_s
+            maxWidth > maxHeight -> if (long) R.raw.splash_tab_l else R.raw.splash_tab_l_s
+            else -> if (long) R.raw.splash_tab_p else R.raw.splash_tab_p_s
+        }
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { c ->
