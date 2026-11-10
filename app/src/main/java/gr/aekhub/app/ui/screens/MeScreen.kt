@@ -82,7 +82,9 @@ fun MeScreen(openPost: (Long) -> Unit) {
     val privacy by Ads.privacyButton.collectAsState()
     LifecycleResumeEffect(Unit) { allowed = Push.allowed(ctx); onPauseOrDispose { } }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = gr.aekhub.app.ui.sidePad(680.dp).let { sp -> PaddingValues(start = sp, end = sp, bottom = 32.dp) }, verticalArrangement = Arrangement.spacedBy(18.dp)) {
+    val meState = androidx.compose.foundation.lazy.rememberLazyListState()
+    LaunchedEffect(Unit) { gr.aekhub.app.TabTap.taps.collect { if (it == "me") runCatching { meState.animateScrollToItem(0) } } }
+    LazyColumn(Modifier.fillMaxSize(), state = meState, contentPadding = gr.aekhub.app.ui.sidePad(680.dp).let { sp -> PaddingValues(start = sp, end = sp, bottom = 32.dp) }, verticalArrangement = Arrangement.spacedBy(18.dp)) {
         item { ScreenTitle("Ειδοποιήσεις", Modifier.padding(top = 14.dp)) }
         item {
             val msg = when {

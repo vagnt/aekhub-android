@@ -41,9 +41,11 @@ object Notifs {
     // Κανάλια (ο χρήστης τα ρυθμίζει και από τις ρυθμίσεις του Android)
     const val CH_LIVE = "live_match"
     const val CH_GOAL = "aek_score2" // νέα κανάλια στο 0.14.0 (νέος ήχος): ο ήχος ενός καναλιού δεν αλλάζει μετά τη δημιουργία του
-    const val CH_MATCH = "matchday2"
+    // 0.17.0 (ζήτησε ο χρήστης): ο ήχος του AEK Hub ΜΟΝΟ στα γκολ της ΑΕΚ· όλα τα άλλα με τον ήχο ειδοποιήσεων του κινητού
+    const val CH_SCORE = "score3"   // γκολ αντιπάλου, σετ, ακυρώσεις — προεπιλεγμένος ήχος
+    const val CH_MATCH = "matchday3"
     const val CH_QUIET = "match_quiet"
-    const val CH_NEWS = "news2"
+    const val CH_NEWS = "news3"
 
     // Θέσεις μέσα σε κάθε αγώνα (ίδιο tag "m<id>": η νέα αντικαθιστά την παλιά του ίδιου είδους)
     private const val SLOT_LIVE = 1
@@ -64,29 +66,29 @@ object Notifs {
         runCatching { nm.deleteNotificationChannel("matches") } // παλιό κανάλι (έως 0.8)
         for (old in listOf("aek_score", "matchday", "news")) runCatching { nm.deleteNotificationChannel(old) } // παλιά κανάλια με τον παλιό ήχο (έως 0.13)
         runCatching { nm.deleteNotificationChannel("goal_aek") } // παλιός ήχος κόρνας (0.9.0)
+        for (old in listOf("matchday2", "news2")) runCatching { nm.deleteNotificationChannel(old) } // με τον ήχο του AEK Hub (έως 0.16)
         // Ζωντανός αγώνας (Live Update, 0.15.0): αθόρυβο κανάλι· ο χρήστης το ανοίγει/κλείνει από το «Εγώ» ή από τις ρυθμίσεις του Android
         nm.createNotificationChannel(NotificationChannel(CH_LIVE, "Ζωντανός αγώνας", NotificationManager.IMPORTANCE_DEFAULT).apply {
             description = "Σκορ και λεπτό που ενημερώνονται ζωντανά στην οθόνη κλειδώματος (Android 16: και στη γραμμή κατάστασης)"
             setSound(null, null); enableVibration(false); setShowBadge(false)
         })
-        nm.createNotificationChannel(NotificationChannel(CH_GOAL, "Σκορ της ΑΕΚ", NotificationManager.IMPORTANCE_HIGH).apply {
-            description = "Γκολ, καλάθι ή σετ της ΑΕΚ, με τον ήχο του AEK Hub"
+        nm.createNotificationChannel(NotificationChannel(CH_GOAL, "Γκολ της ΑΕΚ", NotificationManager.IMPORTANCE_HIGH).apply {
+            description = "Μόνο τα γκολ της ΑΕΚ, με τον ήχο του AEK Hub"
             setSound(Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.aek_sound),
                 AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
             enableVibration(true); vibrationPattern = longArrayOf(0, 120, 80, 120)
         })
+        nm.createNotificationChannel(NotificationChannel(CH_SCORE, "Γκολ & σκορ", NotificationManager.IMPORTANCE_HIGH).apply {
+            description = "Γκολ αντιπάλου, σετ, ακυρώσεις — με τον ήχο ειδοποιήσεων του κινητού"
+        })
         nm.createNotificationChannel(NotificationChannel(CH_MATCH, "Ημέρα αγώνα", NotificationManager.IMPORTANCE_DEFAULT).apply {
             description = "Υπενθύμιση, σέντρα, ημίχρονο, τελικό"
-            setSound(Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.aek_sound),
-                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
         })
         nm.createNotificationChannel(NotificationChannel(CH_QUIET, "Εξελίξεις αγώνα (αθόρυβα)", NotificationManager.IMPORTANCE_LOW).apply {
             description = "Γκολ αντιπάλου, ημίχρονο, κάρτες"
         })
         nm.createNotificationChannel(NotificationChannel(CH_NEWS, "Ειδήσεις", NotificationManager.IMPORTANCE_DEFAULT).apply {
             description = "Έκτακτα και σημαντικά άρθρα"
-            setSound(Uri.parse("android.resource://" + ctx.packageName + "/" + R.raw.aek_sound),
-                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
         })
     }
 
@@ -127,7 +129,7 @@ object Notifs {
         when (kind) {
             "live" -> {} // μόνο το Live Update (παρακάτω)
             // Γκολ (ΑΕΚ ή αντιπάλου — ίδια ειδοποίηση, ίδιος ήχος). Ακύρωση, σετ, πέναλτι: κανονική ειδοποίηση (και ενημερώνεται και η ζωντανή)
-            "goals" -> goal(ctx, d, sp, loud = ev == "goal" && !sp)
+            "goals" -> goal(ctx, d, sp, loud = ev == "goal" && d["aekScored"] == "1" && !sp) // ήχος AEK Hub μόνο σε γκολ της ΑΕΚ
             "startend" -> when {
                 ev == "ft" -> final(ctx, d, sp)
                 ev == "postponed" -> event(ctx, d, sp, CH_MATCH, SLOT_LIVE)
@@ -375,14 +377,14 @@ object Notifs {
         style
     }.getOrNull()
 
-    /** Γκολ (και ακύρωση, πέναλτι, σετ). Γκολ της ΑΕΚ: με ήχο. */
+    /** Γκολ (και ακύρωση, πέναλτι, σετ). Γκολ της ΑΕΚ: ήχος AEK Hub· όλα τα άλλα: ήχος του κινητού. */
     private fun goal(ctx: Context, d: Map<String, String>, spoiler: Boolean, loud: Boolean) {
         val id = d["match"]?.toLongOrNull() ?: return
         val side = d["side"]
         val logo = if (side == "away") d["alogo"] else if (side == "home") d["hlogo"] else aekLogo(d)
         val title = if (spoiler) spoilerTitle(d) else d["title"].orEmpty()
         val text = if (spoiler) "Νέα εξέλιξη στον αγώνα. Πάτα για να τη δεις." else d["body"].orEmpty()
-        val b = base(ctx, if (loud) CH_GOAL else CH_MATCH, title, text)
+        val b = base(ctx, if (loud) CH_GOAL else CH_SCORE, title, text)
             .setSubText(d["comp"])
             .setContentIntent(openMatch(ctx, id, 3))
             .setCategory(NotificationCompat.CATEGORY_EVENT)
@@ -402,7 +404,7 @@ object Notifs {
         if (!shown) return
         val side = d["side"]
         val logo = if (side == "away") d["alogo"] else if (side == "home") d["hlogo"] else aekLogo(d)
-        val b = base(ctx, CH_GOAL, d["title"].orEmpty(), d["body"].orEmpty())
+        val b = base(ctx, if (d["aekScored"] == "1") CH_GOAL else CH_SCORE, d["title"].orEmpty(), d["body"].orEmpty())
             .setSubText(d["comp"])
             .setContentIntent(openMatch(ctx, id, 3))
             .setCategory(NotificationCompat.CATEGORY_EVENT)

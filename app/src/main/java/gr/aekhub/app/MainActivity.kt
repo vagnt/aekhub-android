@@ -172,6 +172,9 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/** Πάτημα στην καρτέλα που είσαι ήδη: Ειδήσεις → πάνω + ανανέωση, οι άλλες → πάνω (ζήτησε ο χρήστης) */
+object TabTap { val taps = kotlinx.coroutines.flow.MutableSharedFlow<String>(extraBufferCapacity = 4) }
+
 private data class Tab(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
 
 private val TABS = listOf(
@@ -193,14 +196,22 @@ private fun AppRoot(deep: MutableStateFlow<Deep?>) {
     }
     // Android 13+: μία φορά ζητάμε άδεια για ειδοποιήσεις
     val ctx = LocalContext.current
-    val askPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    // Νέος χρήστης: μόλις δεχτεί τις ειδοποιήσεις → «Τι θέλεις να μαθαίνεις;» (0.17.0, ζήτησε ο χρήστης)
+    var onboard by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    val askPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok -> if (ok) onboard = true }
     LaunchedEffect(Unit) {
         val sp = ctx.getSharedPreferences("push", android.content.Context.MODE_PRIVATE)
         if (Build.VERSION.SDK_INT >= 33 && !Push.allowed(ctx) && !sp.getBoolean("asked", false)) {
             sp.edit().putBoolean("asked", true).apply()
             askPerm.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else if (Build.VERSION.SDK_INT < 33 && !sp.getBoolean("asked", false)) {
+            // Android ≤ 12: δεν χρειάζεται άδεια — η υποδοχή μόνο σε καινούργια εγκατάσταση
+            sp.edit().putBoolean("asked", true).apply()
+            val pi = runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0) }.getOrNull()
+            if (pi != null && pi.firstInstallTime == pi.lastUpdateTime) onboard = true
         }
     }
+    if (onboard) gr.aekhub.app.ui.components.OnboardDialog { onboard = false }
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route
     val showBar = TABS.any { it.route == route }
@@ -220,6 +231,8 @@ private fun AppRoot(deep: MutableStateFlow<Deep?>) {
     val life = androidx.lifecycle.compose.LocalLifecycleOwner.current
     LaunchedEffect(life) {
         life.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+            // Κάθε φορά που ανοίγει / ξαναβγαίνει μπροστά η εφαρμογή: φρέσκα δεδομένα σε όλες τις οθόνες (ζήτησε ο χρήστης)
+            gr.aekhub.app.live.Live.ping()
             try { kotlinx.coroutines.delay(5_000); while (true) { gr.aekhub.app.data.Analytics.ping(ctx); kotlinx.coroutines.delay(60_000) } }
             finally { gr.aekhub.app.data.Analytics.ping(ctx, leave = true) }
         }
@@ -243,7 +256,7 @@ private fun AppRoot(deep: MutableStateFlow<Deep?>) {
                     TABS.forEach { t ->
                         val on = route == t.route
                         NavigationBarItem(
-                            selected = on, onClick = { goTab(t.route) },
+                            selected = on, onClick = { if (on) TabTap.taps.tryEmit(t.route) else goTab(t.route) },
                             icon = { Icon(t.icon, null, Modifier.size(24.dp)) },
                             // Μία γραμμή πάντα: με μεγάλη γραμματοσειρά συστήματος το «Βαθμολογίες» έσπαγε σε δύο και ανέβαζε τα εικονίδια
                             label = {
@@ -267,7 +280,7 @@ private fun AppRoot(deep: MutableStateFlow<Deep?>) {
                 TABS.forEach { t ->
                     val on = route == t.route
                     NavigationRailItem(
-                        selected = on, onClick = { goTab(t.route) },
+                        selected = on, onClick = { if (on) TabTap.taps.tryEmit(t.route) else goTab(t.route) },
                         icon = { Icon(t.icon, null, Modifier.size(24.dp)) },
                         label = { Text(t.label, style = body(11, if (on) FontWeight.ExtraBold else FontWeight.Bold)) },
                         colors = NavigationRailItemDefaults.colors(
