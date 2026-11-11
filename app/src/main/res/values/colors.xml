@@ -2,5 +2,6 @@
 <resources>
     <color name="ink">#0B0B0A</color>
     <color name="logo_black">#000000</color>
+    <color name="logo_yellow">#F9CF1C</color>
     <color name="gold">#F9CF1C</color>
 </resources>
