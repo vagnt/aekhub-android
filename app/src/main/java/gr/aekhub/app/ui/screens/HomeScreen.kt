@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -88,18 +89,29 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
     // Η αρχική του site δεν στέλνει ποδόσφαιρο στους «Επόμενους αγώνες»: τους παίρνουμε από τη λίστα αγώνων
     var football by remember { mutableStateOf<List<MatchCard>>(emptyList()) }
     var heroLive by remember { mutableStateOf<MatchCard?>(null) }
+    // Tablet: όλοι οι αγώνες ΑΕΚ (μπάρα πάνω) + βαθμολογία (δεξιά στήλη)
+    var mine by remember { mutableStateOf<List<MatchCard>>(emptyList()) }
+    var table by remember { mutableStateOf<gr.aekhub.app.data.Standing?>(null) }
     var key by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
 
     fun takeMatches(all: List<MatchCard>) {
         live = all.filter { it.live && it.aek.isNotEmpty() }
         football = all.filter { it.sport == "football" && it.upcoming && it.aek.isNotEmpty() }
+        mine = all.filter { it.aek.isNotEmpty() }
     }
     suspend fun load(fresh: Boolean = false) {
         try { home = Api.home(fresh); error = false } catch (e: Exception) { if (home == null) error = true }
         if (fresh) runCatching { takeMatches(Api.matches(fresh = true).items) }
     }
     LaunchedEffect(Unit) { runCatching { config = Api.config() } }
+    val isTab = gr.aekhub.app.ui.win() == gr.aekhub.app.ui.Win.Expanded
+    LaunchedEffect(isTab, key) {
+        if (isTab) runCatching {
+            val all = Api.standings().items
+            table = all.firstOrNull { s -> s.rows.any { it.aek } && (s.sport.contains("ποδ") || s.sport.contains("foot", true)) } ?: all.firstOrNull { s -> s.rows.any { it.aek } }
+        }
+    }
     LaunchedEffect(key) { load() }
     // Άμεση ανανέωση όταν αλλάξει κάτι στο site + κάθε 60″ για σιγουριά
     LaunchedEffect(Unit) { gr.aekhub.app.live.Live.ping.collect { load(fresh = true) } }
@@ -141,6 +153,49 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
             when {
                 h == null && error -> ErrorBox { key++ }
                 h == null -> Loading()
+                // Tablet (οριζόντια/μεγάλο): νέο σχέδιο — ίδιο με το iPad
+                w == gr.aekhub.app.ui.Win.Expanded && h.liveHero == null && h.featured != null -> LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                    val liveM = mine.filter { it.live }
+                    val nextM = mine.filter { it.upcoming }.sortedBy { it.date + " " + it.time }.take(8)
+                    val doneM = mine.filter { it.finished }.sortedByDescending { it.date + " " + it.time }.take(3)
+                    item(key = "strip") { TabletMatchStrip(liveM + nextM + doneM, openMatch, openMatches) }
+                    h.breaking?.takeIf { it.text.isNotBlank() }?.let { b -> item(key = "breaking") {
+                        val uri = LocalUriHandler.current
+                        Text("🚨 " + b.label + "  " + b.text, fontWeight = FontWeight.ExtraBold, color = C.Text,
+                            modifier = Modifier.padding(horizontal = 24.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(C.Live).clickable(enabled = b.url.isNotBlank()) { runCatching { uri.openUri(b.url) } }.padding(12.dp))
+                    } }
+                    item(key = "top") {
+                        val f = h.featured ?: return@item
+                        Row(Modifier.padding(horizontal = 24.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                                    Box(Modifier.weight(1.7f)) { TabletHero(f, 440.dp) { openPost(f.id) } }
+                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                                        h.top.take(2).forEach { p -> TabletTile(p) { openPost(p.id) } }
+                                    }
+                                }
+                            }
+                            Column(Modifier.width(320.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                                TabletNewsRail(h.top.drop(2).take(7), openPost, openFeed)
+                                table?.let { t -> TabletAekTable(t, openMatches) }
+                            }
+                        }
+                    }
+                    h.sections.filter { it.items.isNotEmpty() }.forEachIndexed { si, sec ->
+                        item(key = "ts" + sec.slug) {
+                            Column(Modifier.padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                GoldHeader(sec.name, Modifier, "Όλα") { openCat(sec.slug, sec.name) }
+                                Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                                    sec.items.take(4).forEach { p -> Box(Modifier.weight(1f)) { TabletTile(p, 150.dp) { openPost(p.id) } } }
+                                    repeat(4 - sec.items.take(4).size) { Spacer(Modifier.weight(1f)) }
+                                }
+                            }
+                        }
+                        val ads = config?.ads
+                        if (ads != null && si % 2 == 1) item(key = "tad$si") { Box(Modifier.padding(horizontal = 24.dp)) { BannerAd(ads, place = "home") } }
+                    }
+                    if (h.socials.isNotEmpty()) item(key = "soc") { Box(Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) { SocialSection(h.socials) } }
+                }
                 else -> LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(start = side, end = side, bottom = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     // ⏱ Αντίστροφη μέτρηση για τον επιλεγμένο αγώνα (ίδιος με την αρχική του site)
                     h.next?.takeIf { !it.live && !it.finished }?.let { nm -> item(key = "countdown") { gr.aekhub.app.ui.components.NextMatchCountdown(nm) { openMatch(nm.id) } } }
