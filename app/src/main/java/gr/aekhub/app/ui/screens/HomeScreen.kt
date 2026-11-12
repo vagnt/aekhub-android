@@ -181,7 +181,8 @@ fun HomeScreen(openPost: (Long) -> Unit, openMatch: (Long) -> Unit, openSearch: 
                             }
                         }
                     }
-                    h.sections.filter { it.items.isNotEmpty() }.forEachIndexed { si, sec ->
+                    val shownIds = (listOfNotNull(h.featured?.id) + h.top.take(2).map { it.id }).toSet()
+                    h.sections.map { s -> s.copy(items = s.items.filter { it.id !in shownIds }) }.filter { it.items.isNotEmpty() }.forEachIndexed { si, sec ->
                         item(key = "ts" + sec.slug) {
                             Column(Modifier.padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                                 GoldHeader(sec.name, Modifier, "Όλα") { openCat(sec.slug, sec.name) }
